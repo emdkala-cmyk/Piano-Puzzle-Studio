@@ -18,5 +18,6 @@ export function renderCalibration(container: Container, calibration: Calibration
     if (s.showNoteLabels && key.keyType === "white" && key.midiNote % 12 === 0) { const label = new Text({ text: s.showMidiNumbers ? `${key.noteName} ${key.midiNote}` : key.noteName, style: { fill: s.lineColor, fontSize: 11 } }); const p = toView(project(calibration, key.centerPoint)); label.position.set(p.x, p.y); layer.addChild(label); }
   });
   if (calibration.overlaySettings.showAnchors) calibration.anchorPoints.forEach((anchor) => { const p = toView(anchor.point); const marker = new Graphics().circle(p.x, p.y, 5).fill(0xffcc66); layer.addChild(marker); });
+  layer.alpha = calibration.overlaySettings.opacity;
   container.removeChildren(); container.addChild(layer);
 }

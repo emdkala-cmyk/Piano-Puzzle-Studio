@@ -2,8 +2,13 @@ import type { KeyboardType, PianoKey, Point } from "./models";
 
 const NAMES = ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"];
 const BLACK = new Set([1, 3, 6, 8, 10]);
+export const KEYBOARD_RANGES: Partial<Record<KeyboardType, { first: number; last: number }>> = {
+  "88-key": { first: 21, last: 108 },
+  "76-key": { first: 28, last: 103 }
+};
 export function createPianoLayout(type: KeyboardType = "88-key", first = 21, last = 108): PianoKey[] {
-  if (type === "88-key") { first = 21; last = 108; }
+  const range = KEYBOARD_RANGES[type];
+  if (range) { first = range.first; last = range.last; }
   const notes = Array.from({ length: last - first + 1 }, (_, i) => first + i);
   const whites = notes.filter((note) => !BLACK.has(note % 12));
   const whiteIndex = new Map<number, number>(); whites.forEach((note, i) => whiteIndex.set(note, i));
