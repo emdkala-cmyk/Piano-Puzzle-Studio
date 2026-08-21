@@ -32,4 +32,5 @@ export interface Calibration {
   keyMap: PianoKey[]; transform: Transform; overlaySettings: OverlaySettings;
   cameraSettings: CameraSettings; createdAt: string; updatedAt: string; version: string;
   homography?: import("./homography").Matrix3;
+  manualKeyPoints?: Record<number, Point>;
 }
