@@ -162,7 +162,7 @@ export function App() {
       <label class="range-label">Lighting Intensity <output data-fx-value="lightingIntensity"></output></label>
       <input data-fx="lightingIntensity" type="range" min="0" max="1" step="0.01">
       <label>Color Palette<select data-fx="palette"><option value="artwork">Artwork</option><option value="gold">Gold</option><option value="neon">Neon</option><option value="pitch-gradient">Pitch Gradient</option></select></label>
-      <div class="control-row"><button type="button" data-fx-action="reset" class="ghost-button">Reset FX Settings</button><button type="button" data-fx-action="preview" class="ghost-button">Preview FX Test</button></div>
+      <div class="control-row"><button type="button" data-fx-action="reset" class="ghost-button">Reset FX Settings</button><button type="button" data-fx-action="demo" class="ghost-button">Run Demo Scene</button></div>
       <div class="debug-grid"><span>Active particles</span><strong data-fx-stat="activeParticles">0</strong><span>Estimated FPS</span><strong data-fx-stat="estimatedFps">60</strong><span>Dropped particles</span><strong data-fx-stat="droppedParticles">0</strong><span>Last FX event</span><strong data-fx-stat="lastFxEvent">none</strong></div>`;
 
     const content = Array.from(inspector.children).filter((child) => child !== inspector.firstElementChild && child !== tabs);
@@ -200,7 +200,15 @@ export function App() {
     const onPanelClick = (event: Event) => {
       const action = (event.target as HTMLElement).dataset.fxAction;
       if (action === "reset") setFxSettings(DEFAULT_VISUAL_FX_CONFIG);
-      if (action === "preview") fxRef.current?.onNoteOn({ id: "fx-preview", midiNote: 84, velocity: 110, normalizedVelocity: 110 / 127, position: { x: 540, y: 960 }, durationMs: 450, playbackTimeMs: clockRef.current.currentTimeMs });
+      if (action === "demo") {
+        Array.from(document.querySelectorAll<HTMLButtonElement>("button"))
+          .find((button) => button.textContent?.includes("Puzzle Animation Preview"))
+          ?.click();
+        puzzleHost.current?.querySelector<HTMLElement>(".empty-reference")?.style.setProperty("display", "none");
+        fxRef.current?.startDemo();
+        setFxStats(fxRef.current?.getStats());
+        window.setTimeout(() => puzzleHost.current?.querySelector<HTMLElement>(".empty-reference")?.style.setProperty("display", "none"), 0);
+      }
     };
     const onTabsClick = (event: Event) => {
       if (event.target === fxTab) { event.preventDefault(); setContentVisible(true); }
@@ -356,7 +364,7 @@ export function App() {
       previousStates.set(frame.pieceId, frame.state);
     }
     fxRef.current?.update(deltaSeconds, currentTimeMs, frames as FxAnimationFrame[]);
-    if (clockRef.current.clockState === "playing" && now - lastUiSync.current > 120) setFxStats(fxRef.current?.getStats());
+    if (now - lastUiSync.current > 120) { lastUiSync.current = now; setFxStats(fxRef.current?.getStats()); }
     lastAudioTimeMsRef.current = currentTimeMs;
   }
 

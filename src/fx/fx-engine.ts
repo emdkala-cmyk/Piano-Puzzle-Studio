@@ -1,4 +1,4 @@
-import { Container } from "pixi.js";
+import { Container, Graphics } from "pixi.js";
 import type { FxAnimationFrame, FxDebugStats, FxNoteEvent, FxPieceLaunchEvent, FxPieceLockEvent, VisualFxConfig } from "./fx-types";
 import { DEFAULT_VISUAL_FX_CONFIG, MAX_ACTIVE_PARTICLES, normalizeVisualFxConfig } from "./fx-types";
 import { colorForPitch } from "./color-palette";
@@ -14,12 +14,31 @@ interface TrailState {
   intensity: number;
 }
 
+interface DemoPiece {
+  id: string;
+  midiNote: number;
+  from: { x: number; y: number };
+  target: { x: number; y: number };
+  color: number;
+  startMs: number;
+  durationMs: number;
+  launched: boolean;
+  locked: boolean;
+  graphic: Graphics;
+  targetGraphic: Graphics;
+}
+
 export class VisualFxEngine {
   readonly layer = new Container();
   private readonly particlePool = new ParticlePool(MAX_ACTIVE_PARTICLES);
   private readonly glowController = new GlowController();
   private readonly impactEffect = new ImpactEffect();
   private readonly lightingController = new LightingController();
+  private readonly demoLayer = new Container();
+  private demoPieces: DemoPiece[] = [];
+  private demoActive = false;
+  private demoTimeMs = 0;
+  private demoBackdrop: Graphics | undefined;
   private config: VisualFxConfig = DEFAULT_VISUAL_FX_CONFIG;
   private trails = new Map<string, TrailState>();
   private paused = false;
@@ -28,7 +47,7 @@ export class VisualFxEngine {
   private transformMismatchCount = 0;
 
   constructor() {
-    this.layer.addChild(this.lightingController.layer, this.particlePool.layer, this.glowController.layer, this.impactEffect.layer);
+    this.layer.addChild(this.lightingController.layer, this.demoLayer, this.particlePool.layer, this.glowController.layer, this.impactEffect.layer);
   }
 
   initialize(stage: Container, config?: Partial<VisualFxConfig>): void {
@@ -38,8 +57,10 @@ export class VisualFxEngine {
   }
 
   setConfig(config: Partial<VisualFxConfig>): void {
+    const wasDemoActive = this.demoActive;
     this.config = normalizeVisualFxConfig({ ...this.config, ...config });
     this.layer.visible = this.config.enabled;
+    if (wasDemoActive) this.startDemo();
   }
 
   onNoteOn(event: FxNoteEvent): void {
@@ -72,10 +93,56 @@ export class VisualFxEngine {
     this.lastEvent = `lock:${event.pieceId}`;
   }
 
+  startDemo(): void {
+    this.clearDemo();
+    this.demoActive = true;
+    this.demoTimeMs = 0;
+    this.demoBackdrop = new Graphics()
+      .roundRect(44, 72, 992, 820, 28)
+      .fill({ color: 0x101a39, alpha: 0.72 })
+      .stroke({ color: 0x5f83d8, width: 2, alpha: 0.4 })
+      .roundRect(70, 1050, 940, 720, 28)
+      .fill({ color: 0x0b112a, alpha: 0.55 })
+      .stroke({ color: 0x344d8a, width: 1, alpha: 0.35 });
+    this.demoLayer.addChild(this.demoBackdrop);
+    const notes = [40, 52, 60, 67, 76, 88];
+    const colors = notes.map((note) => colorForPitch(this.config.palette, note));
+    notes.forEach((midiNote, index) => {
+      const from = { x: 150 + index * 150, y: 1570 + (index % 2) * 80 };
+      const target = { x: 170 + index * 145, y: 170 + (index % 3) * 210 };
+      const targetGraphic = this.createDemoPieceGraphic(colors[index], true);
+      targetGraphic.position.set(target.x, target.y);
+      this.demoLayer.addChild(targetGraphic);
+      const graphic = this.createDemoPieceGraphic(colors[index], false);
+      graphic.position.set(from.x, from.y);
+      this.demoLayer.addChild(graphic);
+      this.demoPieces.push({
+        id: `demo-piece-${index}`,
+        midiNote,
+        from,
+        target,
+        color: colors[index],
+        startMs: index * 260,
+        durationMs: 900,
+        launched: false,
+        locked: false,
+        graphic,
+        targetGraphic
+      });
+    });
+    this.lastEvent = "demo-start";
+  }
+
+  stopDemo(): void {
+    this.clearDemo();
+    this.lastEvent = "demo-stop";
+  }
+
   update(deltaSeconds: number, _playbackTimeMs: number, frames: FxAnimationFrame[] = []): void {
-    if (!this.config.enabled) return;
     const deltaMs = Math.max(0, Math.min(100, deltaSeconds * 1000));
     this.fps = this.fps * 0.92 + (1 / Math.max(0.001, deltaSeconds)) * 0.08;
+    if (!this.paused && this.demoActive) this.updateDemo(deltaMs);
+    if (!this.config.enabled) return;
     this.lightingController.setPaused(this.paused);
     this.lightingController.update(deltaSeconds, this.config);
     this.glowController.update(deltaMs);
@@ -114,6 +181,7 @@ export class VisualFxEngine {
 
   reset(): void {
     this.clearTransient();
+    this.clearDemo();
     this.lightingController.clear();
     this.lastEvent = "reset";
   }
@@ -147,11 +215,71 @@ export class VisualFxEngine {
     this.trails.clear();
   }
 
+  private updateDemo(deltaMs: number): void {
+    this.demoTimeMs += deltaMs;
+    for (const piece of this.demoPieces) {
+      if (this.demoTimeMs < piece.startMs) continue;
+      if (!piece.launched) {
+        piece.launched = true;
+        this.onNoteOn({
+          id: piece.id,
+          midiNote: piece.midiNote,
+          velocity: 72 + piece.midiNote % 50,
+          normalizedVelocity: (72 + piece.midiNote % 50) / 127,
+          position: piece.from,
+          durationMs: piece.durationMs,
+          playbackTimeMs: this.demoTimeMs
+        });
+        this.onPieceLaunch({
+          pieceId: piece.id,
+          position: piece.from,
+          targetPosition: piece.target,
+          midiNote: piece.midiNote,
+          intensity: 0.65 + (piece.midiNote % 30) / 100,
+          playbackTimeMs: this.demoTimeMs
+        });
+      }
+      const progress = Math.min(1, Math.max(0, (this.demoTimeMs - piece.startMs) / piece.durationMs));
+      const eased = 1 - Math.pow(1 - progress, 3);
+      const x = piece.from.x + (piece.target.x - piece.from.x) * eased;
+      const y = piece.from.y + (piece.target.y - piece.from.y) * eased;
+      piece.graphic.position.set(x, y);
+      piece.graphic.rotation = Math.sin(progress * Math.PI) * 0.05;
+      if (progress >= 1 && !piece.locked) {
+        piece.locked = true;
+        this.onPieceLock({ pieceId: piece.id, position: piece.target, midiNote: piece.midiNote, intensity: 0.9, playbackTimeMs: this.demoTimeMs });
+      }
+    }
+    if (this.demoTimeMs > 4200) this.startDemo();
+  }
+
+  private clearDemo(): void {
+    this.demoActive = false;
+    this.demoTimeMs = 0;
+    this.demoPieces = [];
+    this.demoLayer.removeChildren().forEach((child) => child.destroy());
+    this.demoBackdrop = undefined;
+  }
+
+  private createDemoPieceGraphic(color: number, target: boolean): Graphics {
+    const graphic = new Graphics();
+    const fillAlpha = target ? 0.11 : 0.88;
+    const strokeAlpha = target ? 0.5 : 0.8;
+    graphic.poly([
+      { x: -48, y: -34 }, { x: -18, y: -34 }, { x: -8, y: -48 }, { x: 8, y: -34 },
+      { x: 48, y: -34 }, { x: 48, y: 34 }, { x: 12, y: 34 }, { x: 0, y: 48 },
+      { x: -12, y: 34 }, { x: -48, y: 34 }
+    ])
+      .fill({ color, alpha: fillAlpha })
+      .stroke({ color: target ? color : 0xffffff, width: target ? 2 : 2.5, alpha: strokeAlpha });
+    return graphic;
+  }
+
   private emitTrail(position: { x: number; y: number }, target: { x: number; y: number } | TrailState, color: number, intensity: number): void {
     const dx = target.x - position.x;
     const dy = target.y - position.y;
     const distance = Math.hypot(dx, dy) || 1;
-    const count = Math.max(1, Math.round(1 + this.config.particleDensity * 3 * this.config.trailLength));
+    const count = Math.max(1, Math.round(2 + this.config.particleDensity * 14 * this.config.trailLength));
     for (let i = 0; i < count; i += 1) {
       const spread = (Math.random() - 0.5) * 18;
       this.particlePool.acquire(

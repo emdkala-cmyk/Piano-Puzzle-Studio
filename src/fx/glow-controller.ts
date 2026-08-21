@@ -37,9 +37,9 @@ export class GlowController {
       const fade = 1 - smoothstep(0, glow.lifetime, glow.age);
       const graphic = this.layer.children[i] as Graphics | undefined;
       if (graphic) {
-        graphic.clear().circle(glow.position.x, glow.position.y, glow.radius * (1 + glow.age / glow.lifetime * 0.25)).fill({ color: glow.color, alpha: glow.alpha * fade * 0.25 });
+        graphic.clear().circle(glow.position.x, glow.position.y, glow.radius * (1 + glow.age / glow.lifetime * 0.35)).fill({ color: glow.color, alpha: glow.alpha * fade * 0.45 });
       } else {
-        this.layer.addChild(new Graphics().circle(glow.position.x, glow.position.y, glow.radius).fill({ color: glow.color, alpha: glow.alpha * fade * 0.25 }));
+        this.layer.addChild(new Graphics().circle(glow.position.x, glow.position.y, glow.radius).fill({ color: glow.color, alpha: glow.alpha * fade * 0.45 }));
       }
     }
     while (this.layer.children.length > this.glows.length) this.layer.removeChildAt(this.layer.children.length - 1);

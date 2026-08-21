@@ -39,8 +39,8 @@ export class LightingController {
     const pulse = clamp(0.55 + this.bassEnergy * 0.45, 0, 1);
     this.vignette.clear()
       .rect(0, 0, this.width, this.height)
-      .fill({ color: 0x5c77d6, alpha: alpha * 0.06 * pulse })
-      .stroke({ color: 0xffd98a, width: 2, alpha: alpha * 0.12 });
+      .fill({ color: 0x5c77d6, alpha: alpha * 0.22 * pulse })
+      .stroke({ color: 0xffd98a, width: 3, alpha: alpha * 0.22 });
   }
 
   clear(): void {
