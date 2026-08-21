@@ -16,7 +16,7 @@ export interface PianoKey {
   spawnPoint: Point; centerPoint: Point; topEdge: Point; bottomEdge: Point; leftEdge: Point; rightEdge: Point;
   projectedPolygon?: Point[]; projectedCenterPoint?: Point; projectedSpawnPoint?: Point;
 }
-export interface AnchorPoint { id: string; kind: AnchorKind; point: Point; label: string; midiNote?: number; projectedPoint?: Point; error?: number }
+export interface AnchorPoint { id: string; kind: AnchorKind; point: Point; label: string; midiNote?: number; projectedPoint?: Point; error?: number; placed?: boolean }
 export interface OverlaySettings {
   opacity: number; lineColor: string; fillColor: string; lineWidth: number;
   showWhiteKeys: boolean; showBlackKeys: boolean; showNoteLabels: boolean;

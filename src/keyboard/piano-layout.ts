@@ -2,6 +2,10 @@ import type { KeyboardType, PianoKey, Point } from "./models";
 
 const NAMES = ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"];
 const BLACK = new Set([1, 3, 6, 8, 10]);
+// Fraction of the way from the preceding white key's center to the following
+// white key's center, matching real keyboard geometry (each black key sits
+// closer to one neighbor rather than exactly centered on the previous white key).
+const BLACK_KEY_RATIO: Record<number, number> = { 1: 0.35, 3: 0.65, 6: 0.3, 8: 0.5, 10: 0.7 };
 export const KEYBOARD_RANGES: Partial<Record<KeyboardType, { first: number; last: number }>> = {
   "88-key": { first: 21, last: 108 },
   "76-key": { first: 28, last: 103 }
@@ -15,9 +19,21 @@ export function createPianoLayout(type: KeyboardType = "88-key", first = 21, las
   const whiteWidth = 1 / whites.length;
   return notes.map((midiNote) => {
     const keyType = BLACK.has(midiNote % 12) ? "black" : "white";
-    const whiteBefore = notes.slice(0, notes.indexOf(midiNote) + 1).filter((note) => !BLACK.has(note % 12)).length;
     const normalizedWidth = keyType === "white" ? whiteWidth : whiteWidth * 0.58;
-    const normalizedX = keyType === "white" ? (whiteIndex.get(midiNote) ?? 0) * whiteWidth : (whiteBefore - 1) * whiteWidth - normalizedWidth / 2;
+    let normalizedX: number;
+    if (keyType === "white") {
+      normalizedX = (whiteIndex.get(midiNote) ?? 0) * whiteWidth;
+    } else {
+      const prevWhite = [...whites].reverse().find((note) => note < midiNote);
+      const nextWhite = whites.find((note) => note > midiNote);
+      const prevCenter = ((whiteIndex.get(prevWhite ?? midiNote) ?? 0) + 0.5) * whiteWidth;
+      const nextCenter = ((whiteIndex.get(nextWhite ?? midiNote) ?? 0) + 0.5) * whiteWidth;
+      const ratio = BLACK_KEY_RATIO[midiNote % 12] ?? 0.5;
+      const centerX = prevWhite !== undefined && nextWhite !== undefined
+        ? prevCenter + ratio * (nextCenter - prevCenter)
+        : (prevWhite !== undefined ? prevCenter : nextCenter);
+      normalizedX = centerX - normalizedWidth / 2;
+    }
     const y = keyType === "white" ? 0.12 : 0;
     const h = keyType === "white" ? 0.88 : 0.58;
     const centerPoint: Point = { x: normalizedX + normalizedWidth / 2, y: y + h / 2 };

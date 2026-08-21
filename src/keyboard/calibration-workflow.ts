@@ -1,6 +1,7 @@
 import { createPianoLayout, KEYBOARD_RANGES } from "./piano-layout";
 import { identityTransform } from "./calibration-transform";
-import { applyHomography, computeHomography, isValidQuadrilateral } from "./homography";
+import { isValidQuadrilateral } from "./homography";
+import { anchorReferencePoint, baseProject, computeCornerHomography } from "./key-projection";
 import type { AnchorPoint, Calibration, KeyboardType, Point, ViewType } from "./models";
 const keyboardLabels: Partial<Record<KeyboardType, string>> = { "88-key": "88-key Piano", "76-key": "76-key Korg Pa4X" };
 
@@ -13,20 +14,19 @@ const anchorDefinitions: Array<[string, AnchorPoint["kind"], string, number?]> =
 export function createDefaultCalibration(width: number, height: number, keyboardType: KeyboardType = "88-key"): Calibration {
   const now = new Date().toISOString();
   const range = KEYBOARD_RANGES[keyboardType] ?? KEYBOARD_RANGES["88-key"]!;
-  return { id: `cal-${keyboardType}`, name: keyboardLabels[keyboardType] ?? "Keyboard Calibration", viewType: "top", keyboardType, noteRange: { first: range.first, last: range.last }, referenceWidth: width, referenceHeight: height, sourceWidth: width, sourceHeight: height, keyboardBounds: { x: 0, y: height * .12, width, height: height * .88 }, anchorPoints: anchorDefinitions.map(([id, kind, label, midiNote]) => ({ id, kind, label, midiNote, point: { x: width / 2, y: height / 2 } })), keyMap: createPianoLayout(keyboardType, range.first, range.last), transform: identityTransform(), overlaySettings: overlayDefaults, cameraSettings: { liveCameraEnabled: false, referenceFrameTime: 0, opacity: 1, mirrorX: false, mirrorY: false, locked: false }, createdAt: now, updatedAt: now, version: "1.2.0" };
+  const keyMap = createPianoLayout(keyboardType, range.first, range.last);
+  return { id: `cal-${keyboardType}`, name: keyboardLabels[keyboardType] ?? "Keyboard Calibration", viewType: "top", keyboardType, noteRange: { first: range.first, last: range.last }, referenceWidth: width, referenceHeight: height, sourceWidth: width, sourceHeight: height, keyboardBounds: { x: 0, y: height * .12, width, height: height * .88 }, anchorPoints: anchorDefinitions.map(([id, kind, label, midiNote]) => { const ref = anchorReferencePoint({ kind, midiNote }, keyMap) ?? { x: 0.5, y: 0.5 }; return { id, kind, label, midiNote, point: { x: ref.x * width, y: ref.y * height } }; }), keyMap, transform: identityTransform(), overlaySettings: overlayDefaults, cameraSettings: { liveCameraEnabled: false, referenceFrameTime: 0, opacity: 1, mirrorX: false, mirrorY: false, locked: false }, createdAt: now, updatedAt: now, version: "1.2.0" };
 }
 export function calibrationCorners(calibration: Calibration): Point[] { return [calibration.transform.topLeft, calibration.transform.topRight, calibration.transform.bottomRight, calibration.transform.bottomLeft]; }
 export function calibrationIsValid(calibration: Calibration): boolean { return isValidQuadrilateral(calibrationCorners(calibration)); }
 export function withHomography(calibration: Calibration): Calibration {
-  const homography = computeHomography([{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 1 }], calibrationCorners(calibration));
-  return { ...calibration, homography };
+  return { ...calibration, homography: computeCornerHomography(calibration) };
 }
 export function updateAnchorDiagnostics(calibration: Calibration): Calibration {
-  const h = calibration.homography ?? withHomography(calibration).homography;
+  const matrix = calibration.homography ?? computeCornerHomography(calibration);
   const anchors = calibration.anchorPoints.map((anchor) => {
-    const key = anchor.midiNote ? calibration.keyMap.find((item) => item.midiNote === anchor.midiNote) : undefined;
-    const projected = key ? applyHomography(key.centerPoint, h!) : undefined;
-    const projectedPoint = projected ? { x: projected.x * calibration.sourceWidth, y: projected.y * calibration.sourceHeight } : undefined;
+    const ref = anchorReferencePoint(anchor, calibration.keyMap);
+    const projectedPoint = ref ? baseProject(calibration, ref, matrix) : undefined;
     const error = projectedPoint ? Math.hypot(projectedPoint.x - anchor.point.x, projectedPoint.y - anchor.point.y) : undefined;
     return { ...anchor, projectedPoint, error };
   });
