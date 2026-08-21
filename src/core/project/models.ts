@@ -57,7 +57,7 @@ export function createProject(): Project {
     midiSettings: { selectedTrackIndices: [], chordTolerance: 0.045 },
     previewSettings: { fps: 60, loop: false, currentTime: 0 },
     midiMappingConfig: { enabled: true, mappingMode: "deterministic-sequence", outOfRangePolicy: "mark-invalid", chordWindowMs: 45, showDebugMarkers: true, showAssignmentLines: false, sequenceCycle: true },
-    animationTimingSettings: { baseTravelDurationMs: 520, minTravelDurationMs: 160, maxTravelDurationMs: 1100, preHitDelayMs: 0, postHitHoldMs: 120, durationInfluence: 0.25, velocityInfluence: 220, overlapMode: "allow-overlap", easing: "easeOut", animationSpeed: 1, debugVisible: true },
+    animationTimingSettings: { baseTravelDurationMs: 520, minTravelDurationMs: 160, maxTravelDurationMs: 1100, preHitDelayMs: 0, postHitHoldMs: 120, durationInfluence: 0.25, velocityInfluence: 220, overlapMode: "allow-overlap", easing: "easeOut", animationSpeed: 1, debugVisible: false },
     animationEasing: "easeOut",
     animationSpeed: 1,
     overlapMode: "allow-overlap",
