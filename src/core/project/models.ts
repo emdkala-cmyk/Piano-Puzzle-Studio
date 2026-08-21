@@ -1,5 +1,6 @@
 export type AssetType = "image" | "midi" | "audio";
 export type AssetStatus = "empty" | "loading" | "loaded" | "error";
+export type AssetRole = "reference-piano-frame" | "puzzle-artwork" | "midi";
 import type { Calibration } from "../../keyboard/models";
 import type { MidiMappingConfig } from "../../puzzle/puzzle-event-models";
 import type { AnimationTimingSettings } from "../../animation/models";
@@ -20,6 +21,7 @@ export interface Asset {
   status: AssetStatus;
   error?: string;
   dataUrl?: string;
+  role?: AssetRole;
 }
 
 export interface Project {
@@ -54,7 +56,7 @@ export function createProject(): Project {
     canvasSettings: { width: 1080, height: 1920, fit: "contain" },
     midiSettings: { selectedTrackIndices: [], chordTolerance: 0.045 },
     previewSettings: { fps: 60, loop: false, currentTime: 0 },
-    midiMappingConfig: { enabled: true, mappingMode: "nearest-centroid", outOfRangePolicy: "mark-invalid", chordWindowMs: 45, showDebugMarkers: true, showAssignmentLines: false },
+    midiMappingConfig: { enabled: true, mappingMode: "deterministic-sequence", outOfRangePolicy: "mark-invalid", chordWindowMs: 45, showDebugMarkers: true, showAssignmentLines: false, sequenceCycle: true },
     animationTimingSettings: { baseTravelDurationMs: 520, minTravelDurationMs: 160, maxTravelDurationMs: 1100, preHitDelayMs: 0, postHitHoldMs: 120, durationInfluence: 0.25, velocityInfluence: 220, overlapMode: "allow-overlap", easing: "easeOut", animationSpeed: 1, debugVisible: true },
     animationEasing: "easeOut",
     animationSpeed: 1,
