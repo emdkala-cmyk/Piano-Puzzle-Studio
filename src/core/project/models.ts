@@ -3,6 +3,8 @@ export type AssetStatus = "empty" | "loading" | "loaded" | "error";
 import type { Calibration } from "../../keyboard/models";
 import type { MidiMappingConfig } from "../../puzzle/puzzle-event-models";
 import type { AnimationTimingSettings } from "../../animation/models";
+import type { ExpressionSettings } from "../../expression/models";
+import { DEFAULT_EXPRESSION_SETTINGS } from "../../expression/expression-store";
 
 export interface Asset {
   id: string;
@@ -38,6 +40,7 @@ export interface Project {
   animationSpeed: number;
   overlapMode: AnimationTimingSettings["overlapMode"];
   debugVisible: boolean;
+  expressionSettings: ExpressionSettings;
   version: string;
 }
 
@@ -57,6 +60,7 @@ export function createProject(): Project {
     animationSpeed: 1,
     overlapMode: "allow-overlap",
     debugVisible: true,
+    expressionSettings: DEFAULT_EXPRESSION_SETTINGS,
     version: "0.2.0"
   };
 }

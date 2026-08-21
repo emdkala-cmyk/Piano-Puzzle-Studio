@@ -4,6 +4,7 @@ import type { PuzzlePieceAssignment } from "../puzzle/puzzle-event-models";
 import type { AnimationSource, AnimationTimeline, PieceAnimation } from "./models";
 import { normalizeAnimationTiming } from "./models";
 import { travelDuration } from "./piece-animation";
+import { applyExpressionToAnimation } from "./expression-adapter";
 
 export function buildAnimationTimeline(source: AnimationSource): AnimationTimeline {
   const settings = normalizeAnimationTiming(source.timing);
@@ -23,7 +24,8 @@ export function buildAnimationTimeline(source: AnimationSource): AnimationTimeli
     }
     const endTimeMs = startTimeMs + durationMs + settings.postHitHoldMs;
     perPieceEnd.set(piece.id, endTimeMs);
-    animations.push({ id: `animation-${assignment.id}`, assignmentId: assignment.id, pieceId: piece.id, midiNote: event.midiNote, startTimeMs, endTimeMs, durationMs, delayMs: settings.preHitDelayMs, progress: 0, state: "scheduled", spawnPosition: event.spawnPoint, targetPosition: piece.targetPosition, currentPosition: event.spawnPoint, rotation: 0, scale: 1, opacity: 1, zIndex: piece.layer, easing: settings.easing, completed: false, visible: false });
+    const base: PieceAnimation = { id: `animation-${assignment.id}`, assignmentId: assignment.id, pieceId: piece.id, midiNote: event.midiNote, startTimeMs, endTimeMs, durationMs, delayMs: settings.preHitDelayMs, progress: 0, state: "scheduled", spawnPosition: event.spawnPoint, targetPosition: piece.targetPosition, currentPosition: event.spawnPoint, rotation: 0, scale: 1, opacity: 1, zIndex: piece.layer, easing: settings.easing, completed: false, visible: false };
+    animations.push(applyExpressionToAnimation(base, source.expression?.noteExpressions.get(assignment.id)));
   }
   return { animations, totalDurationMs: Math.max(source.mapping.events.reduce((m, event) => Math.max(m, event.startTimeMs + event.durationMs), 0), ...animations.map((a) => a.endTimeMs), 0) };
 }

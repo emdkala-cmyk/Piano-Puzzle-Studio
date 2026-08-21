@@ -3,7 +3,7 @@ import type { KeyType } from "../keyboard/models";
 
 export type MappingState = "unmapped" | "mapped" | "assigned" | "invalid";
 export interface MappedNoteEvent {
-  id: string; midiNote: number; noteName: string; channel: number; velocity: number; normalizedVelocity: number;
+  id: string; trackIndex: number; midiNote: number; noteName: string; channel: number; velocity: number; normalizedVelocity: number;
   startTick?: number; endTick?: number; durationTicks?: number; startTimeMs: number; durationMs: number;
   keyType?: KeyType; keyMapEntryId?: string; spawnPoint?: Point; centerPoint?: Point; impactPoint?: Point;
   projectedPolygon?: Point[]; projectedBounds?: Bounds; assignedPieceIds: string[]; priority?: number; layer?: number;

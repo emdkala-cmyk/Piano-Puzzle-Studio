@@ -1,5 +1,5 @@
 import { Midi } from "@tonejs/midi";
-import type { NormalizedMidi, MidiNoteEvent, ChordGroup } from "./models";
+import type { NormalizedMidi, MidiNoteEvent, ChordGroup, SustainEvent } from "./models";
 
 const NOTE_NAMES = ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"];
 
@@ -13,6 +13,7 @@ export function parseMidi(buffer: ArrayBuffer, fileName: string, selectedTrackIn
   }));
   const selected = selectedTrackIndices.length ? new Set(selectedTrackIndices) : undefined;
   const events: MidiNoteEvent[] = [];
+  const sustainEvents: SustainEvent[] = [];
   midi.tracks.forEach((track, trackIndex) => {
     if (selected && !selected.has(trackIndex)) return;
     track.notes.forEach((note, noteIndex) => {
@@ -27,7 +28,11 @@ export function parseMidi(buffer: ArrayBuffer, fileName: string, selectedTrackIn
         velocity: note.velocity
       });
     });
+    (track.controlChanges.sustain ?? []).forEach((cc) => {
+      sustainEvents.push({ trackIndex, timeMs: cc.time * 1000, value: cc.value });
+    });
   });
+  sustainEvents.sort((a, b) => a.timeMs - b.timeMs);
   events.sort((a, b) => a.startTime - b.startTime || a.midiNote - b.midiNote);
   const chordGroups: ChordGroup[] = [];
   let groupIndex = 0;
@@ -52,6 +57,7 @@ export function parseMidi(buffer: ArrayBuffer, fileName: string, selectedTrackIn
     tracks,
     events,
     chordGroups,
+    sustainEvents,
     totalNoteCount: events.length,
     minPitch: pitches.length ? Math.min(...pitches) : 0,
     maxPitch: pitches.length ? Math.max(...pitches) : 0,

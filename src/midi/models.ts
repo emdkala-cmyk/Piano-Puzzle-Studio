@@ -23,6 +23,12 @@ export interface ChordGroup {
   eventIds: string[];
 }
 
+export interface SustainEvent {
+  trackIndex: number;
+  timeMs: number;
+  value: number;
+}
+
 export interface NormalizedMidi {
   fileName: string;
   duration: number;
@@ -32,6 +38,7 @@ export interface NormalizedMidi {
   tracks: MidiTrackSummary[];
   events: MidiNoteEvent[];
   chordGroups: ChordGroup[];
+  sustainEvents: SustainEvent[];
   totalNoteCount: number;
   minPitch: number;
   maxPitch: number;

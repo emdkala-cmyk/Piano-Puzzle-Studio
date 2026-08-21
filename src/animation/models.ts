@@ -1,5 +1,6 @@
 import type { Point, GeometryPiece } from "../geometry/models";
 import type { MidiMappingResult, PuzzlePieceAssignment } from "../puzzle/puzzle-event-models";
+import type { ExpressionResult, MotionProfile } from "../expression/models";
 
 export type AnimationState = "idle" | "scheduled" | "moving" | "arrived" | "cancelled" | "hidden";
 export type EasingName = "linear" | "easeIn" | "easeOut" | "easeInOut";
@@ -41,6 +42,7 @@ export interface PieceAnimation {
   easing: EasingName;
   completed: boolean;
   visible: boolean;
+  motion?: MotionProfile;
 }
 
 export interface PieceAnimationFrame extends PieceAnimation {
@@ -56,6 +58,7 @@ export interface AnimationSource {
   mapping: MidiMappingResult;
   pieces: GeometryPiece[];
   timing: AnimationTimingSettings;
+  expression?: ExpressionResult;
 }
 
 export const DEFAULT_ANIMATION_TIMING: AnimationTimingSettings = {
