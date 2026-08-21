@@ -28,9 +28,13 @@ export function mapMidiToPuzzle(midi: NormalizedMidi, calibration: Calibration |
   const assignmentOrder = sequenceState
     ? events.map((event, index) => ({ event, index })).sort((a, b) => a.event.startTimeMs - b.event.startTimeMs || a.index - b.index)
     : events.map((event, index) => ({ event, index }));
+  const assignableCount = assignmentOrder.filter(({ event }) => event.spawnPoint && geometry).length;
+  let assignableSeen = 0;
   for (const { event } of assignmentOrder) {
     if (event.spawnPoint && geometry) {
-      const eventAssignments = assignPieces(event, geometry.pieces, config.mappingMode, sequenceState);
+      assignableSeen += 1;
+      const remainingEvents = assignableCount - assignableSeen + 1;
+      const eventAssignments = assignPieces(event, geometry.pieces, config.mappingMode, sequenceState, remainingEvents);
       event.assignedPieceIds = eventAssignments.map((a) => a.pieceId);
       event.state = eventAssignments.length ? "assigned" : event.state;
       assignments.push(...eventAssignments);

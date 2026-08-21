@@ -20,7 +20,7 @@ export function computeDurationDerived(effectiveDurationMs: number, settings: Du
   return {
     normalizedDuration,
     arrivalHoldMs: Math.max(settings.minArrivalHoldMs, Math.min(settings.maxArrivalHoldMs, arrivalHoldMs)),
-    scaleEnd: 1 + influenced * 0.08,
+    scaleEnd: 1,
     opacityEnd: 1
   };
 }

@@ -30,9 +30,9 @@ function evaluateMotion(motion: MotionProfile, elapsedMs: number, durationMs: nu
   const settleElapsedMs = elapsedMs - durationMs;
   if (settleElapsedMs < motion.arrivalHoldMs) {
     const t = ease(motion.arrivalHoldMs > 0 ? settleElapsedMs / motion.arrivalHoldMs : 1, motion.easing);
-    return { scale: lerp(motion.scalePeak, motion.scaleEnd, t), rotation: motion.rotationEnd, opacity: lerp(motion.opacityPeak, motion.opacityEnd, t) };
+    return { scale: lerp(motion.scalePeak, motion.scaleEnd, t), rotation: lerp(motion.rotationEnd, 0, t), opacity: lerp(motion.opacityPeak, motion.opacityEnd, t) };
   }
-  return { scale: motion.scaleEnd, rotation: motion.rotationEnd, opacity: motion.opacityEnd };
+  return { scale: motion.scaleEnd, rotation: 0, opacity: motion.opacityEnd };
 }
 
 export function evaluateAnimation(animation: PieceAnimation, timeMs: number): PieceAnimationFrame {

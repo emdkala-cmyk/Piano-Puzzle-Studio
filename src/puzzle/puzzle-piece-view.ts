@@ -20,8 +20,13 @@ export class PuzzlePieceView {
       sprite.y = placement.offsetY * scale;
       sprite.width = texture.width * placement.scale * scale;
       sprite.height = texture.height * placement.scale * scale;
+      const inflatedPath = path.map((p) => {
+        const dx = p.x - this.pivotX, dy = p.y - this.pivotY, len = Math.hypot(dx, dy) || 1;
+        const factor = (len + 0.75) / len;
+        return { x: this.pivotX + dx * factor, y: this.pivotY + dy * factor };
+      });
       const mask = new Graphics();
-      mask.poly(path).fill(0xffffff);
+      mask.poly(inflatedPath).fill(0xffffff);
       sprite.mask = mask;
       this.container.addChild(sprite, mask);
       if (showBorders) this.shape.poly(path).stroke({ color: 0x8ed0ff, width: 1, alpha: 0.5 });

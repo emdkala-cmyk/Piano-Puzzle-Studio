@@ -27,6 +27,18 @@ function makePiece(poly: Point[], index: number, width: number, height: number, 
   const c = centroid(poly); const b = bounds(poly); const priority = importanceAt(map, c, width, height);
   return { id: `piece-${index + 1}`, polygon: poly, centroid: c, bounds: b, area: polygonArea(poly), textureRegion: { x: b.x, y: b.y, width: b.width, height: b.height, u0: b.x / width, v0: b.y / height, u1: (b.x + b.width) / width, v1: (b.y + b.height) / height }, priority, layer: priority > 0.66 ? 2 : priority > 0.4 ? 1 : 0, targetPosition: c };
 }
+export function suggestDensity(mode: GeometryMode, width: number, height: number, noteCount: number, min = 4, max = 20): number {
+  if (!width || !height || noteCount <= 0) return min;
+  const target = mode === "delaunay" ? noteCount / 2 : noteCount;
+  let best = min; let bestDiff = Infinity;
+  for (let d = min; d <= max; d += 1) {
+    const columns = Math.max(2, d), rows = Math.max(2, Math.round(d * height / width));
+    const diff = Math.abs(columns * rows - target);
+    if (diff < bestDiff) { bestDiff = diff; best = d; }
+  }
+  return best;
+}
+
 export function generateGeometry(source: HTMLImageElement, mode: GeometryMode, density = 8): GeometryResult {
   const width = source.naturalWidth, height = source.naturalHeight, map = buildImportanceMap(source);
   const columns = Math.max(2, density), rows = Math.max(2, Math.round(density * height / width));
@@ -43,4 +55,22 @@ export function generateGeometry(source: HTMLImageElement, mode: GeometryMode, d
     });
   }
   return { mode, width, height, pieces: polygons.map((p, i) => makePiece(p, i, width, height, map)), importanceMap: map };
+}
+
+export function drawDensityPreview(canvas: HTMLCanvasElement, source: HTMLImageElement, mode: GeometryMode, density: number): number {
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return 0;
+  const geometry = generateGeometry(source, mode, density);
+  const scale = Math.min(canvas.width / geometry.width, canvas.height / geometry.height);
+  const offsetX = (canvas.width - geometry.width * scale) / 2, offsetY = (canvas.height - geometry.height * scale) / 2;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(source, offsetX, offsetY, geometry.width * scale, geometry.height * scale);
+  ctx.strokeStyle = "rgba(85,217,255,0.85)"; ctx.lineWidth = 1;
+  for (const piece of geometry.pieces) {
+    if (!piece.polygon.length) continue;
+    ctx.beginPath();
+    piece.polygon.forEach((p, i) => { const x = offsetX + p.x * scale, y = offsetY + p.y * scale; if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); });
+    ctx.closePath(); ctx.stroke();
+  }
+  return geometry.pieces.length;
 }
