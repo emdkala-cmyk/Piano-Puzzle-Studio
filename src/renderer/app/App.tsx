@@ -28,6 +28,8 @@ import { computeRegionPlacement, computeAlignedPlacement, projectGeometry, proje
 import type { PianoPlacementConfig, PlacementAlignX, PlacementAlignY } from "../../composition/coordinate-transform";
 import { normalizeCompositionLayout } from "../../composition/composition-store";
 import { PianoSynth } from "../../audio/piano-synth";
+import { VisualFxEngine } from "../../fx/fx-engine";
+import { DEFAULT_VISUAL_FX_CONFIG, type FxAnimationFrame, type VisualFxConfig } from "../../fx/fx-types";
 
 const views: ViewType[] = ["top", "top-angle", "three-quarter", "side", "custom"];
 const viewLabels: Record<ViewType, string> = { top: "top (از بالا)", "top-angle": "top-angle (زاویه‌ی بالا)", "three-quarter": "three-quarter (سه‌ربعی)", side: "side (از بغل)", custom: "custom (سفارشی)" };
@@ -76,7 +78,8 @@ export function App() {
   const [keyboardType, setKeyboardType] = useState<KeyboardType>("88-key");
   const [geometryMode, setGeometryMode] = useState<GeometryMode>("grid"); const [geometryDensity, setGeometryDensity] = useState(8); const [showPieceBorders, setShowPieceBorders] = useState(false);
   const [previewTab, setPreviewTab] = useState<"calibration" | "puzzle">("calibration");
-  const [inspectorTab, setInspectorTab] = useState<"mapping" | "playback" | "expression">("mapping");
+  const [inspectorTab, setInspectorTab] = useState<"mapping" | "playback" | "expression" | "fx">("mapping");
+  const [fxSettings, setFxSettings] = useState<VisualFxConfig>(DEFAULT_VISUAL_FX_CONFIG);
   const [previewPieceCount, setPreviewPieceCount] = useState(0);
   const densityPreviewRef = useRef<HTMLCanvasElement>(null);
   const [calibZoom, setCalibZoom] = useState({ scale: 1, panX: 0, panY: 0 });
@@ -90,6 +93,9 @@ export function App() {
   const clockRef = useRef(new AnimationClock());
   const rendererRef = useRef<PuzzleRenderer | null>(null);
   const debugLayerRef = useRef<Container | null>(null);
+  const fxRef = useRef<VisualFxEngine | null>(null);
+  const previousFrameStateRef = useRef(new Map<string, string>());
+  const lastFxTickTimeRef = useRef(performance.now());
   const pianoBackgroundRef = useRef<Container | null>(null);
   const referenceFrameImageRef = useRef<HTMLImageElement | undefined>(undefined);
   const spriteRef = useRef<Sprite | null>(null);
@@ -109,6 +115,7 @@ export function App() {
   const [clockState, setClockState] = useState<{ currentTimeMs: number; state: AnimationClockState }>({ currentTimeMs: 0, state: "stopped" });
   const [timelineInfo, setTimelineInfo] = useState<{ count: number; totalDurationMs: number }>({ count: 0, totalDurationMs: 0 });
   const [debugFrames, setDebugFrames] = useState<PieceAnimationFrame[]>([]);
+  const [fxStats, setFxStats] = useState<ReturnType<VisualFxEngine["getStats"]>>();
   const [showHelp, setShowHelp] = useState(false);
 
   const [audioEnabled, setAudioEnabled] = useState(true);
@@ -122,6 +129,114 @@ export function App() {
   const expressionResultRef = useRef<ExpressionResult | undefined>(undefined);
 
   useEffect(() => { referenceFrameRef.current = referenceFrame; geometryRef.current = geometry; mappingRef.current = mapping; timingRef.current = timingSettings; expressionRef.current = expressionSettings; showPieceBordersRef.current = showPieceBorders; audioEnabledRef.current = audioEnabled; calibZoomRef.current = calibZoom; pianoPlacementRef.current = pianoPlacement; }, [referenceFrame, geometry, mapping, timingSettings, expressionSettings, showPieceBorders, audioEnabled, calibZoom, pianoPlacement]);
+  useEffect(() => { fxRef.current?.setConfig(fxSettings); }, [fxSettings]);
+  useEffect(() => {
+    const tabs = document.querySelector<HTMLElement>(".inspector-tabs");
+    const inspector = document.querySelector<HTMLElement>(".inspector");
+    if (!tabs || !inspector || tabs.querySelector("[data-fx-tab]")) return;
+
+    const fxTab = document.createElement("button");
+    fxTab.type = "button";
+    fxTab.dataset.fxTab = "true";
+    fxTab.className = "inspector-tab";
+    fxTab.textContent = "Visual FX (جلوه‌ها)";
+
+    const panel = document.createElement("div");
+    panel.className = "fx-dom-panel";
+    panel.hidden = true;
+    panel.innerHTML = `
+      <div class="fx-dom-heading">Visual FX / جلوه‌های بصری</div>
+      <label class="toggle-row"><span>Enable Visual FX</span><input data-fx="enabled" type="checkbox"></label>
+      <label class="toggle-row"><span>Keyboard Glow</span><input data-fx="glowEnabled" type="checkbox"></label>
+      <label class="toggle-row"><span>Particle Trails</span><input data-fx="trailEnabled" type="checkbox"></label>
+      <label class="toggle-row"><span>Lock-in Impact</span><input data-fx="lockImpactEnabled" type="checkbox"></label>
+      <label class="toggle-row"><span>Artwork Lighting</span><input data-fx="lightingEnabled" type="checkbox"></label>
+      <label class="range-label">Glow Intensity <output data-fx-value="glowIntensity"></output></label>
+      <input data-fx="glowIntensity" type="range" min="0" max="1" step="0.01">
+      <label class="range-label">Particle Density <output data-fx-value="particleDensity"></output></label>
+      <input data-fx="particleDensity" type="range" min="0" max="1" step="0.01">
+      <label class="range-label">Trail Length <output data-fx-value="trailLength"></output></label>
+      <input data-fx="trailLength" type="range" min="0" max="1" step="0.01">
+      <label class="range-label">Impact Intensity <output data-fx-value="impactIntensity"></output></label>
+      <input data-fx="impactIntensity" type="range" min="0" max="1" step="0.01">
+      <label class="range-label">Lighting Intensity <output data-fx-value="lightingIntensity"></output></label>
+      <input data-fx="lightingIntensity" type="range" min="0" max="1" step="0.01">
+      <label>Color Palette<select data-fx="palette"><option value="artwork">Artwork</option><option value="gold">Gold</option><option value="neon">Neon</option><option value="pitch-gradient">Pitch Gradient</option></select></label>
+      <div class="control-row"><button type="button" data-fx-action="reset" class="ghost-button">Reset FX Settings</button><button type="button" data-fx-action="preview" class="ghost-button">Preview FX Test</button></div>
+      <div class="debug-grid"><span>Active particles</span><strong data-fx-stat="activeParticles">0</strong><span>Estimated FPS</span><strong data-fx-stat="estimatedFps">60</strong><span>Dropped particles</span><strong data-fx-stat="droppedParticles">0</strong><span>Last FX event</span><strong data-fx-stat="lastFxEvent">none</strong></div>`;
+
+    const content = Array.from(inspector.children).filter((child) => child !== inspector.firstElementChild && child !== tabs);
+    const setContentVisible = (visible: boolean) => {
+      content.forEach((child) => { (child as HTMLElement).style.display = visible ? "" : "none"; });
+      panel.hidden = !visible;
+      fxTab.classList.toggle("inspector-tab-active", visible);
+    };
+    const syncControls = () => {
+      panel.querySelectorAll<HTMLInputElement | HTMLSelectElement>("[data-fx]").forEach((control) => {
+        const key = control.dataset.fx as keyof VisualFxConfig;
+        const value = fxSettings[key];
+        if (control instanceof HTMLInputElement && control.type === "checkbox") control.checked = Boolean(value);
+        else control.value = String(value);
+      });
+      panel.querySelectorAll<HTMLOutputElement>("[data-fx-value]").forEach((output) => {
+        const key = output.dataset.fxValue as keyof VisualFxConfig;
+        const value = fxSettings[key];
+        output.value = typeof value === "number" ? value.toFixed(2) : String(value);
+        output.textContent = output.value;
+      });
+      const stats = fxStats ?? fxRef.current?.getStats();
+      panel.querySelector('[data-fx-stat="activeParticles"]')!.textContent = String(stats?.activeParticles ?? 0);
+      panel.querySelector('[data-fx-stat="estimatedFps"]')!.textContent = String(stats?.estimatedFps ?? 60);
+      panel.querySelector('[data-fx-stat="droppedParticles"]')!.textContent = String(stats?.droppedParticles ?? 0);
+      panel.querySelector('[data-fx-stat="lastFxEvent"]')!.textContent = String(stats?.lastFxEvent ?? "none");
+    };
+    const onInput = (event: Event) => {
+      const control = event.target as HTMLInputElement | HTMLSelectElement;
+      const key = control.dataset.fx as keyof VisualFxConfig | undefined;
+      if (!key) return;
+      const value = control instanceof HTMLInputElement && control.type === "checkbox" ? control.checked : control.value;
+      setFxSettings((current) => ({ ...current, [key]: typeof current[key] === "number" ? Number(value) : value } as VisualFxConfig));
+    };
+    const onPanelClick = (event: Event) => {
+      const action = (event.target as HTMLElement).dataset.fxAction;
+      if (action === "reset") setFxSettings(DEFAULT_VISUAL_FX_CONFIG);
+      if (action === "preview") fxRef.current?.onNoteOn({ id: "fx-preview", midiNote: 84, velocity: 110, normalizedVelocity: 110 / 127, position: { x: 540, y: 960 }, durationMs: 450, playbackTimeMs: clockRef.current.currentTimeMs });
+    };
+    const onTabsClick = (event: Event) => {
+      if (event.target === fxTab) { event.preventDefault(); setContentVisible(true); }
+      else if ((event.target as HTMLElement).closest("button") !== fxTab) setContentVisible(false);
+    };
+    fxTab.addEventListener("click", onTabsClick);
+    tabs.addEventListener("click", onTabsClick);
+    panel.addEventListener("input", onInput);
+    panel.addEventListener("change", onInput);
+    panel.addEventListener("click", onPanelClick);
+    tabs.appendChild(fxTab);
+    inspector.appendChild(panel);
+    syncControls();
+    return () => { fxTab.removeEventListener("click", onTabsClick); tabs.removeEventListener("click", onTabsClick); panel.removeEventListener("input", onInput); panel.removeEventListener("change", onInput); panel.removeEventListener("click", onPanelClick); fxTab.remove(); panel.remove(); };
+  }, []);
+
+  useEffect(() => {
+    const panel = document.querySelector<HTMLElement>(".fx-dom-panel");
+    if (!panel) return;
+    panel.querySelectorAll<HTMLInputElement | HTMLSelectElement>("[data-fx]").forEach((control) => {
+      const key = control.dataset.fx as keyof VisualFxConfig;
+      const value = fxSettings[key];
+      if (control instanceof HTMLInputElement && control.type === "checkbox") control.checked = Boolean(value);
+      else control.value = String(value);
+    });
+    panel.querySelectorAll<HTMLOutputElement>("[data-fx-value]").forEach((output) => {
+      const key = output.dataset.fxValue as keyof VisualFxConfig;
+      const value = fxSettings[key];
+      output.textContent = typeof value === "number" ? value.toFixed(2) : String(value);
+    });
+    const stats = fxStats ?? fxRef.current?.getStats();
+    panel.querySelector('[data-fx-stat="activeParticles"]')!.textContent = String(stats?.activeParticles ?? 0);
+    panel.querySelector('[data-fx-stat="estimatedFps"]')!.textContent = String(stats?.estimatedFps ?? 60);
+    panel.querySelector('[data-fx-stat="droppedParticles"]')!.textContent = String(stats?.droppedParticles ?? 0);
+    panel.querySelector('[data-fx-stat="lastFxEvent"]')!.textContent = String(stats?.lastFxEvent ?? "none");
+  }, [fxSettings, fxStats]);
 
   function applyImageTransform(explicitDims?: { width: number; height: number }) {
     const app = pixi.current;
@@ -198,22 +313,50 @@ export function App() {
     if (pianoBackgroundRef.current) pianoBackgroundRef.current.position.set(offsetX, offsetY);
     if (rendererRef.current) rendererRef.current.layer.position.set(offsetX, offsetY);
     if (debugLayerRef.current) debugLayerRef.current.position.set(offsetX, offsetY);
+    if (fxRef.current) { fxRef.current.layer.position.set(offsetX, offsetY); fxRef.current.layer.scale.set(k); }
     rebuildPianoBackground(k);
     rebuildPuzzleRenderer();
   }
 
   function tick() {
+    const now = performance.now();
+    const deltaSeconds = Math.min(0.05, Math.max(0, (now - lastFxTickTimeRef.current) / 1000));
+    lastFxTickTimeRef.current = now;
     const frames = engineRef.current.evaluate(clockRef.current.currentTimeMs);
     framesRef.current = frames;
     rendererRef.current?.update(frames, puzzleTransformRef.current.k);
     if (debugLayerRef.current) { const visible = timingRef.current.debugVisible || expressionRef.current.debugVisible; debugLayerRef.current.visible = visible; if (visible) updateDebugOverlay(frames); }
     const currentTimeMs = clockRef.current.currentTimeMs;
     const previousAudioTimeMs = lastAudioTimeMsRef.current;
-    if (audioEnabledRef.current && mappingRef.current && currentTimeMs > previousAudioTimeMs) {
+    if (mappingRef.current && currentTimeMs > previousAudioTimeMs) {
       for (const event of mappingRef.current.events) {
-        if (event.startTimeMs > previousAudioTimeMs && event.startTimeMs <= currentTimeMs) audioRef.current.noteOn(event.midiNote, event.normalizedVelocity, event.durationMs);
+        if ((event.startTimeMs > previousAudioTimeMs || (previousAudioTimeMs === 0 && event.startTimeMs === 0)) && event.startTimeMs <= currentTimeMs) {
+          if (audioEnabledRef.current) audioRef.current.noteOn(event.midiNote, event.normalizedVelocity, event.durationMs);
+          fxRef.current?.onNoteOn({
+            id: event.id,
+            midiNote: event.midiNote,
+            velocity: event.velocity,
+            normalizedVelocity: event.normalizedVelocity,
+            position: event.spawnPoint ?? event.centerPoint ?? { x: 0, y: 0 },
+            durationMs: event.durationMs,
+            playbackTimeMs: event.startTimeMs
+          });
+        }
       }
     }
+    const previousStates = previousFrameStateRef.current;
+    for (const frame of frames) {
+      const previousState = previousStates.get(frame.pieceId);
+      if (frame.state === "moving" && previousState !== "moving") {
+        fxRef.current?.onPieceLaunch({ pieceId: frame.pieceId, position: frame.currentPosition, targetPosition: frame.targetPosition, midiNote: frame.midiNote, intensity: frame.opacity, playbackTimeMs: currentTimeMs });
+      }
+      if (frame.state === "arrived" && previousState !== "arrived") {
+        fxRef.current?.onPieceLock({ pieceId: frame.pieceId, position: frame.targetPosition, midiNote: frame.midiNote, intensity: frame.opacity, playbackTimeMs: currentTimeMs });
+      }
+      previousStates.set(frame.pieceId, frame.state);
+    }
+    fxRef.current?.update(deltaSeconds, currentTimeMs, frames as FxAnimationFrame[]);
+    if (clockRef.current.clockState === "playing" && now - lastUiSync.current > 120) setFxStats(fxRef.current?.getStats());
     lastAudioTimeMsRef.current = currentTimeMs;
   }
 
@@ -328,11 +471,12 @@ export function App() {
       const pianoBackground = new Container(); pianoBackgroundRef.current = pianoBackground; app.stage.addChild(pianoBackground);
       const renderer = new PuzzleRenderer(); rendererRef.current = renderer; app.stage.addChild(renderer.layer);
       const debugLayer = new Container(); debugLayer.visible = timingRef.current.debugVisible; debugLayerRef.current = debugLayer; app.stage.addChild(debugLayer);
+      const fx = new VisualFxEngine(); fx.initialize(app.stage, fxSettings); fxRef.current = fx;
       app.renderer.on("resize", onResize);
       app.ticker.add(tick);
       applyPuzzleTransform();
     });
-    return () => { disposed = true; app.renderer?.off("resize", onResize); app.ticker?.remove(tick); audioRef.current.stopAll(); if (initialized) app.destroy(true); };
+    return () => { disposed = true; app.renderer?.off("resize", onResize); app.ticker?.remove(tick); audioRef.current.stopAll(); fxRef.current?.dispose(); fxRef.current = null; previousFrameStateRef.current.clear(); if (initialized) app.destroy(true); };
   }, []);
 
   useEffect(() => { if (calibration && overlay.current && pixi.current) renderCalibration(overlay.current, calibration, pixi.current.screen.width, pixi.current.screen.height); }, [calibration]);
@@ -510,10 +654,36 @@ export function App() {
     setMapping(undefined);
   }
   function exportOverlay(kind: "svg" | "png") { if (!calibration) return; const svg = createOverlaySvg(calibration); if (kind === "svg") { const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" })); a.download = "keyboard-overlay.svg"; a.click(); return; } const image = new Image(); image.onload = () => { const canvas = document.createElement("canvas"); canvas.width = calibration.sourceWidth; canvas.height = calibration.sourceHeight; canvas.getContext("2d")?.drawImage(image, 0, 0); canvas.toBlob((blob) => { if (blob) { const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "keyboard-overlay.png"; a.click(); } }, "image/png"); }; image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`; }
-  function togglePlay() { if (clockRef.current.clockState === "playing") { clockRef.current.pause(); } else { audioRef.current.resume(); clockRef.current.play(); } }
-  function seek(ms: number) { lastAudioTimeMsRef.current = ms; clockRef.current.seek(ms); }
-  function stopPlayback() { lastAudioTimeMsRef.current = 0; audioRef.current.stopAll(); clockRef.current.stop(); }
-  function resetPlayback() { lastAudioTimeMsRef.current = 0; audioRef.current.stopAll(); clockRef.current.reset(); }
+  function togglePlay() {
+    if (clockRef.current.clockState === "playing") {
+      clockRef.current.pause();
+      fxRef.current?.onPause();
+    } else {
+      audioRef.current.resume();
+      clockRef.current.play();
+      fxRef.current?.onResume();
+    }
+  }
+  function seek(ms: number) {
+    lastAudioTimeMsRef.current = ms;
+    previousFrameStateRef.current.clear();
+    fxRef.current?.onSeek();
+    clockRef.current.seek(ms);
+  }
+  function stopPlayback() {
+    lastAudioTimeMsRef.current = 0;
+    previousFrameStateRef.current.clear();
+    audioRef.current.stopAll();
+    fxRef.current?.reset();
+    clockRef.current.stop();
+  }
+  function resetPlayback() {
+    lastAudioTimeMsRef.current = 0;
+    previousFrameStateRef.current.clear();
+    audioRef.current.stopAll();
+    fxRef.current?.reset();
+    clockRef.current.reset();
+  }
   function setSpeed(speed: number) { clockRef.current.setSpeed(speed); setTimingSettings((prev) => ({ ...prev, animationSpeed: speed })); }
   function updateVelocitySettings(patch: Partial<ExpressionSettings["velocity"]>) { setExpressionSettings((prev) => ({ ...prev, velocity: { ...prev.velocity, ...patch } })); }
   function updateDurationSettings(patch: Partial<ExpressionSettings["duration"]>) { setExpressionSettings((prev) => ({ ...prev, duration: { ...prev.duration, ...patch } })); }
