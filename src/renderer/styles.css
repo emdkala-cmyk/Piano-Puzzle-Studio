@@ -14,3 +14,4 @@
 .preview-tabs{display:flex;gap:8px;margin:14px 0 4px}.preview-tab{flex:1;padding:9px;border:1px solid #39436f;background:#10152b;color:#b8c2e4;border-radius:8px;cursor:pointer;font-size:12px}.preview-tab-active{background:#314071;color:#fff;border-color:#55d9ff}
 .inspector-tabs{display:flex;gap:6px;margin:12px 0 14px}.inspector-tab{flex:1;padding:8px 4px;border:1px solid #39436f;background:#10152b;color:#b8c2e4;border-radius:7px;cursor:pointer;font-size:10.5px}.inspector-tab-active{background:#314071;color:#fff;border-color:#55d9ff}
 .density-preview{display:block;width:100%;height:150px;margin:10px 0 4px;border-radius:8px;border:1px solid #39436f;background:#10152b}
+.placement-preview{height:206px;cursor:grab;touch-action:none}.placement-preview:active{cursor:grabbing}.canvas-frame{transition:transform .05s linear}

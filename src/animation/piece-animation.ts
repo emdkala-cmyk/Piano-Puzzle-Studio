@@ -35,17 +35,21 @@ function evaluateMotion(motion: MotionProfile, elapsedMs: number, durationMs: nu
   return { scale: motion.scaleEnd, rotation: 0, opacity: motion.opacityEnd };
 }
 
+const SPAWN_MIN_SCALE = 0.05;
+
 export function evaluateAnimation(animation: PieceAnimation, timeMs: number): PieceAnimationFrame {
   const elapsedMs = timeMs - animation.startTimeMs;
   const motion = animation.motion;
   const visuals = motion ? evaluateMotion(motion, elapsedMs, animation.durationMs) : undefined;
-  const scale = visuals?.scale ?? animation.scale;
+  const baseScale = visuals?.scale ?? animation.scale;
   const rotation = visuals?.rotation ?? animation.rotation;
   const opacity = visuals?.opacity ?? animation.opacity;
   if (animation.state === "cancelled") return { ...animation, progress: 0, currentPosition: animation.spawnPosition, state: "cancelled", visible: false, completed: false, elapsedMs };
-  if (elapsedMs < 0) return { ...animation, scale, rotation, opacity, progress: 0, currentPosition: animation.spawnPosition, state: "scheduled", visible: false, completed: false, elapsedMs };
-  if (elapsedMs >= animation.durationMs) return { ...animation, scale, rotation, opacity, progress: 1, currentPosition: animation.targetPosition, state: "arrived", visible: true, completed: true, elapsedMs };
+  if (elapsedMs < 0) return { ...animation, scale: baseScale, rotation, opacity, progress: 0, currentPosition: animation.spawnPosition, state: "scheduled", visible: false, completed: false, elapsedMs };
+  if (elapsedMs >= animation.durationMs) return { ...animation, scale: baseScale, rotation, opacity, progress: 1, currentPosition: animation.targetPosition, state: "arrived", visible: true, completed: true, elapsedMs };
   const progress = ease(elapsedMs / animation.durationMs, animation.easing);
+  const growth = SPAWN_MIN_SCALE + (1 - SPAWN_MIN_SCALE) * ease(elapsedMs / animation.durationMs, "easeOut");
+  const scale = baseScale * growth;
   const currentPosition: Point = { x: animation.spawnPosition.x + (animation.targetPosition.x - animation.spawnPosition.x) * progress, y: animation.spawnPosition.y + (animation.targetPosition.y - animation.spawnPosition.y) * progress };
   return { ...animation, scale, rotation, opacity, progress, currentPosition, state: "moving", visible: true, completed: false, elapsedMs };
 }
