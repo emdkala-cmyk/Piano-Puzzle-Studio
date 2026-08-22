@@ -483,12 +483,15 @@ function paintEmber(context: CanvasRenderingContext2D, width: number, height: nu
     const ny = y / height - 0.5;
     const radius = Math.hypot(nx, ny);
     const angle = Math.atan2(ny, nx);
-    const noise = fractalNoise(x / width * 7, y / height * 7, 5);
-    const contour = 0.27 + Math.sin(angle * 3 + noise * 2.4) * 0.045 + noise * 0.035;
+    const noise1 = fractalNoise(x / width * 7, y / height * 7, 5);
+    const noise2 = fractalNoise(x / width * 14, y / height * 14, 15);
+    const noise3 = fractalNoise(x / width * 28, y / height * 28, 25);
+    const contour = 0.27 + Math.sin(angle * 3 + noise1 * 2.4) * 0.06 + noise1 * 0.045 + noise2 * 0.02;
     const edge = Math.max(0, Math.min(1, (contour - radius) * 8.2));
     const core = Math.pow(edge, 1.6);
-    const flicker = 0.56 + fractalNoise(x / width * 13, y / height * 13, 15) * 0.44;
-    return Math.max(0, Math.min(1, core * flicker));
+    const flicker = 0.56 + noise1 * 0.24 + noise2 * 0.12 + noise3 * 0.08;
+    const tendrils = Math.max(0, Math.sin(angle * 5 + noise1 * 4) * 0.12 + Math.sin(angle * 8 - noise2 * 3) * 0.06);
+    return Math.max(0, Math.min(1, (core + tendrils * 0.3) * flicker));
   }, [255, 221, 126]);
   context.putImageData(image, 0, 0);
 }
@@ -513,37 +516,39 @@ function paintMicroSpark(context: CanvasRenderingContext2D, width: number, heigh
     const ny = y / height - 0.5;
     const distance = Math.hypot(nx, ny);
     const angle = Math.atan2(ny, nx);
-    const noise = fractalNoise(x / width * 12, y / height * 12, 67);
-    const core = Math.exp(-distance * distance * 92) * (0.62 + noise * 0.38);
+    const noise1 = fractalNoise(x / width * 12, y / height * 12, 67);
+    const noise2 = fractalNoise(x / width * 24, y / height * 24, 77);
+    const core = Math.exp(-distance * distance * 92) * (0.62 + noise1 * 0.38);
     let filaments = 0;
-    for (let arm = 0; arm < 3; arm += 1) {
-      const armAngle = arm * (Math.PI * 2 / 3) + 0.24;
+    for (let arm = 0; arm < 4; arm += 1) {
+      const armAngle = arm * (Math.PI * 2 / 4) + 0.24 + noise1 * 0.3;
       const tangent = Math.sin(angle - armAngle);
       const radial = Math.cos(angle - armAngle);
-      const ray = Math.exp(-Math.abs(tangent) * 30) * Math.exp(-Math.max(0, radial) * 2.4);
+      const ray = Math.exp(-Math.abs(tangent) * 24) * Math.exp(-Math.max(0, radial) * 2.0);
       const breakup = 0.2 + fractalNoise(x / width * 18 + arm * 2.7, y / height * 18 - arm * 1.3, 73 + arm) * 0.8;
       filaments += ray * breakup * Math.max(0, radial);
     }
-    const crumbs = Math.pow(Math.max(0, noise - 0.44), 1.8) * Math.max(0, 1 - distance * 2.3);
-    return Math.min(1, core + filaments * 0.24 + crumbs * 0.28);
+    const crumbs = Math.pow(Math.max(0, noise1 - 0.38), 1.5) * Math.max(0, 1 - distance * 2.0);
+    const sparks = Math.pow(Math.max(0, noise2 - 0.65), 2.2) * Math.max(0, 1 - distance * 1.8);
+    return Math.min(1, core + filaments * 0.28 + crumbs * 0.32 + sparks * 0.18);
   }, [255, 246, 208]);
   context.putImageData(image, 0, 0);
 }
 
 function paintSparkField(context: CanvasRenderingContext2D, width: number, height: number): void {
   const image = context.createImageData(width, height);
-  const points = Array.from({ length: 46 }, (_, index) => {
-    const t = (index + 0.5) / 46;
-    const lane = index % 3;
+  const points = Array.from({ length: 68 }, (_, index) => {
+    const t = (index + 0.5) / 68;
+    const lane = index % 4;
     const wobble = fractalNoise(t * 9.2 + lane * 1.7, lane * 0.8 + 2.4, 121) - 0.5;
-    const x = 0.06 + t * 0.88 + wobble * 0.055;
-    const center = 0.5 + Math.sin(t * 11.5 + lane * 1.8) * 0.12 + wobble * 0.16;
-    const y = center + (lane - 1) * (0.09 + (index % 4) * 0.018) + Math.sin(index * 2.7) * 0.035;
+    const x = 0.04 + t * 0.92 + wobble * 0.06;
+    const center = 0.5 + Math.sin(t * 11.5 + lane * 1.8) * 0.14 + wobble * 0.18;
+    const y = center + (lane - 1.5) * (0.08 + (index % 4) * 0.015) + Math.sin(index * 2.7) * 0.03;
     return {
       x,
       y,
-      radius: 0.008 + (index % 5) * 0.0035,
-      alpha: 0.28 + (index % 7) * 0.085
+      radius: 0.006 + (index % 5) * 0.003,
+      alpha: 0.24 + (index % 7) * 0.095
     };
   });
   paintAlphaField(image, width, height, (x, y) => {
@@ -551,19 +556,22 @@ function paintSparkField(context: CanvasRenderingContext2D, width: number, heigh
     const ny = y / height;
     const fineNoise = fractalNoise(nx * 22, ny * 24, 127);
     const coarseNoise = fractalNoise(nx * 7.2 + 1.6, ny * 8.4 + 2.1, 131);
+    const microNoise = fractalNoise(nx * 44, ny * 48, 141);
     let density = 0;
     for (const point of points) {
       const dx = (nx - point.x) / point.radius;
       const dy = (ny - point.y) / (point.radius * (0.7 + coarseNoise * 0.35));
-      const broken = 0.18 + fractalNoise(nx * 35 + point.x * 12, ny * 31 + point.y * 9, 137 + Math.round(point.x * 100)) * 0.82;
-      density += Math.exp(-(dx * dx + dy * dy) * 3.2) * point.alpha * broken;
+      const broken = 0.15 + fractalNoise(nx * 35 + point.x * 12, ny * 31 + point.y * 9, 137 + Math.round(point.x * 100)) * 0.85;
+      density += Math.exp(-(dx * dx + dy * dy) * 3.0) * point.alpha * broken;
     }
     const strandA = 0.5 + Math.sin(nx * 12 + coarseNoise * 2.8) * 0.14;
     const strandB = 0.5 + Math.sin(nx * 17 + 1.9 + fineNoise * 2.2) * 0.1;
-    const filamentA = Math.exp(-Math.pow((ny - strandA) / 0.025, 2)) * Math.max(0, fineNoise - 0.56) * 0.22;
-    const filamentB = Math.exp(-Math.pow((ny - strandB) / 0.018, 2)) * Math.max(0, coarseNoise - 0.62) * 0.18;
-    const taper = Math.pow(Math.max(0, Math.sin(nx * Math.PI)), 0.42);
-    return Math.min(1, (density + filamentA + filamentB) * (0.36 + fineNoise * 0.64) * taper);
+    const strandC = 0.5 + Math.sin(nx * 23 + 3.4 + microNoise * 1.8) * 0.08;
+    const filamentA = Math.exp(-Math.pow((ny - strandA) / 0.022, 2)) * Math.max(0, fineNoise - 0.52) * 0.24;
+    const filamentB = Math.exp(-Math.pow((ny - strandB) / 0.016, 2)) * Math.max(0, coarseNoise - 0.58) * 0.20;
+    const filamentC = Math.exp(-Math.pow((ny - strandC) / 0.012, 2)) * Math.max(0, microNoise - 0.64) * 0.14;
+    const taper = Math.pow(Math.max(0, Math.sin(nx * Math.PI)), 0.38);
+    return Math.min(1, (density + filamentA + filamentB + filamentC) * (0.32 + fineNoise * 0.68) * taper);
   }, [255, 245, 210]);
   context.putImageData(image, 0, 0);
 }

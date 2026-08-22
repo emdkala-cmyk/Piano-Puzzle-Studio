@@ -88,6 +88,14 @@ export class VisualFxEngine {
   private droppedByInvalidEvent = 0;
   private droppedByInactiveState = 0;
   private lastTrailTexture: FxTextureId = "dust-mote";
+  private vortexAngle = 0;
+  private vortexCenter = { x: 540, y: 600 };
+  private vortexActive = false;
+  private vortexIntensity = 0;
+  private vortexSpawnTimer = 0;
+  private galaxyAngle = 0;
+  private galaxyActive = false;
+  private galaxySpawnTimer = 0;
 
   constructor() {
     this.layer.addChild(this.lightingController.layer, this.demoLayer, this.smokeController.layer, this.ribbonLayer, this.particlePool.layer, this.glowController.layer, this.impactEffect.layer);
@@ -340,6 +348,12 @@ export class VisualFxEngine {
         }
       }
     }
+    if (this.isVortexPreset() && this.config.particlesEnabled) {
+      this.updateVortex(deltaMs);
+    }
+    if (this.isGalaxyPreset() && this.config.particlesEnabled) {
+      this.updateGalaxy(deltaMs);
+    }
     this.updateRibbons(deltaMs);
     this.commitFrameMetrics();
   }
@@ -421,6 +435,11 @@ export class VisualFxEngine {
     this.droppedByFrameBudget = 0;
     this.droppedByInvalidEvent = 0;
     this.droppedByInactiveState = 0;
+    this.vortexActive = false;
+    this.vortexIntensity = 0;
+    this.vortexSpawnTimer = 0;
+    this.galaxyActive = false;
+    this.galaxySpawnTimer = 0;
   }
 
   private updateDemo(deltaMs: number): void {
@@ -601,14 +620,14 @@ export class VisualFxEngine {
     const direction = invert ? -1 : 1;
     const behavior = hasTrail ? this.behaviorForMidi(target.midiNote) : "neutral";
     const count = isLocalTrail
-      ? Math.max(6, Math.round(5 + this.config.particleDensity * 4))
+      ? Math.max(8, Math.round(6 + this.config.particleDensity * 6))
       : Math.max(
-        30,
+        35,
         Math.round(
-          (behavior === "bass" ? 38 : behavior === "high" ? 34 : 36)
+          (behavior === "bass" ? 44 : behavior === "high" ? 40 : 42)
           * (0.8 + this.config.particleDensity * 0.55)
           * tuning.trailMultiplier
-          * 0.64
+          * 0.58
         )
       );
     const control = hasTrail
@@ -697,7 +716,7 @@ export class VisualFxEngine {
         0.52 + intensity * 0.34
       );
     }
-    const count = behavior === "bass" ? 42 : behavior === "high" ? 38 : 40;
+    const count = behavior === "bass" ? 56 : behavior === "high" ? 50 : 54;
     const spread = behavior === "bass" ? 12 : behavior === "high" ? 7 : 10;
     const speed = behavior === "bass" ? 28 : behavior === "high" ? 48 : 36;
 
@@ -750,7 +769,7 @@ export class VisualFxEngine {
     behavior: FxSmokeBehavior
   ): void {
     const tuning = getFxPresetTuning(this.config.preset);
-    const count = behavior === "high" ? 34 : behavior === "bass" ? 30 : 32;
+    const count = behavior === "high" ? 46 : behavior === "bass" ? 42 : 44;
     const speed = behavior === "bass" ? 24 : behavior === "high" ? 38 : 30;
     for (let index = 0; index < (behavior === "high" ? 2 : 3); index += 1) {
       this.tryAcquireParticle(
@@ -1202,11 +1221,32 @@ export class VisualFxEngine {
   }
 
   private stardustColorFor(behavior: FxSmokeBehavior, sourceColor: number, midiNote: number): number {
-    const baseColor = behavior === "bass"
-      ? 0xff8f32
-      : behavior === "high"
-        ? (midiNote % 3 === 0 ? 0xff55c9 : 0x7b9dff)
-        : (midiNote % 2 === 0 ? 0xffd36a : 0xff72c8);
+    let baseColor: number;
+    if (this.isVortexPreset()) {
+      baseColor = behavior === "bass"
+        ? 0xff4500
+        : behavior === "high"
+          ? (midiNote % 3 === 0 ? 0xff6600 : 0xffaa00)
+          : (midiNote % 2 === 0 ? 0xff5500 : 0xff8800);
+    } else if (this.isGalaxyPreset()) {
+      baseColor = behavior === "bass"
+        ? 0x9b30ff
+        : behavior === "high"
+          ? (midiNote % 3 === 0 ? 0xff69b4 : 0x00bfff)
+          : (midiNote % 2 === 0 ? 0xda70d6 : 0x9370db);
+    } else if (this.isEtherealPreset()) {
+      baseColor = behavior === "bass"
+        ? 0xc0c0c0
+        : behavior === "high"
+          ? (midiNote % 3 === 0 ? 0xffffff : 0xe8e8ff)
+          : (midiNote % 2 === 0 ? 0xd0d0ff : 0xf0f0ff);
+    } else {
+      baseColor = behavior === "bass"
+        ? 0xff8f32
+        : behavior === "high"
+          ? (midiNote % 3 === 0 ? 0xff55c9 : 0x7b9dff)
+          : (midiNote % 2 === 0 ? 0xffd36a : 0xff72c8);
+    }
     const sourceWeight = this.config.palette === "artwork"
       ? 0.22
       : this.config.palette === "pitch-gradient"
@@ -1231,7 +1271,19 @@ export class VisualFxEngine {
   }
 
   private isStardustPreset(): boolean {
-    return this.config.preset === "stardust-stream";
+    return this.config.preset === "stardust-stream" || this.config.preset === "vortex-fire" || this.config.preset === "galaxy-swirl" || this.config.preset === "ethereal-white";
+  }
+
+  private isVortexPreset(): boolean {
+    return this.config.preset === "vortex-fire";
+  }
+
+  private isGalaxyPreset(): boolean {
+    return this.config.preset === "galaxy-swirl";
+  }
+
+  private isEtherealPreset(): boolean {
+    return this.config.preset === "ethereal-white";
   }
 
   private resetRandomStreams(seed: string): void {
@@ -1276,6 +1328,117 @@ export class VisualFxEngine {
             alpha: freshness * trail.intensity * (0.1 + this.config.trailLength * 0.48)
           });
       }
+    }
+  }
+
+  private updateVortex(deltaMs: number): void {
+    if (!this.vortexActive) {
+      this.vortexActive = true;
+      this.vortexAngle = 0;
+      this.vortexCenter = { x: 540, y: 550 };
+      this.vortexIntensity = 0;
+    }
+    this.vortexIntensity = Math.min(1, this.vortexIntensity + deltaMs * 0.001);
+    this.vortexAngle += deltaMs * 0.0008;
+    this.vortexSpawnTimer += deltaMs;
+    if (this.vortexSpawnTimer < 8) return;
+    this.vortexSpawnTimer = 0;
+    const tuning = getFxPresetTuning(this.config.preset);
+    const baseCount = Math.round(6 * this.config.particleDensity * tuning.trailMultiplier * this.vortexIntensity);
+    for (let i = 0; i < baseCount; i++) {
+      const t = this.random.nextFloat();
+      const spiralAngle = this.vortexAngle + t * Math.PI * 6 + this.random.signed(0.3);
+      const radius = 40 + t * 320 + this.random.signed(18);
+      const x = this.vortexCenter.x + Math.cos(spiralAngle) * radius;
+      const y = this.vortexCenter.y + Math.sin(spiralAngle) * radius * 0.45;
+      const tangentAngle = spiralAngle + Math.PI * 0.5;
+      const speed = 12 + t * 22;
+      const vx = Math.cos(tangentAngle) * speed + this.random.signed(4);
+      const vy = Math.sin(tangentAngle) * speed * 0.45 + this.random.signed(3) - 6;
+      const behavior = t < 0.25 ? "bass" : t > 0.75 ? "high" : "neutral";
+      const sourceColor = colorForPitch(this.config.palette, 48 + Math.round(t * 48));
+      const color = this.stardustColorFor(behavior, sourceColor, 48 + Math.round(t * 48));
+      const textureRoll = this.random.nextFloat();
+      const textureId: FxTextureId = textureRoll < 0.35 ? "spark-field" : textureRoll < 0.6 ? "micro-spark" : textureRoll < 0.82 ? "particle-cluster" : "micro-streak";
+      const textureScale = textureId === "micro-streak" ? 0.28 : textureId === "spark-field" ? 0.24 : textureId === "particle-cluster" ? 0.22 : 0.18;
+      this.tryAcquireParticle(
+        { x, y },
+        { x: vx, y: vy },
+        this.config.particleLifetimeMs * this.random.range(0.6, 1.8),
+        this.random.nextFloat() > 0.9 ? 0xffffff : color,
+        this.config.particleSize * tuning.particleScale * textureScale * this.random.range(0.8, 1.6) * (0.7 + this.vortexIntensity * 0.3),
+        textureId,
+        (0.55 + this.vortexIntensity * 0.35) * this.random.range(0.8, 1.2)
+      );
+    }
+    if (this.config.smokeEnabled && tuning.smokeMultiplier > 0 && this.random.nextFloat() < 0.3) {
+      const smokeAngle = this.vortexAngle * 0.7 + this.random.signed(0.5);
+      const smokeRadius = 60 + this.random.range(0, 200);
+      const sx = this.vortexCenter.x + Math.cos(smokeAngle) * smokeRadius;
+      const sy = this.vortexCenter.y + Math.sin(smokeAngle) * smokeRadius * 0.4;
+      this.tryAcquireSmoke(
+        { x: sx, y: sy },
+        { x: Math.cos(smokeAngle + 1.2) * 5, y: -3 },
+        this.config.particleLifetimeMs * 2.5,
+        0xff6600,
+        this.config.particleSize * 18 * this.random.range(0.8, 1.3),
+        0.08 * tuning.smokeMultiplier,
+        "volume",
+        "neutral"
+      );
+    }
+  }
+
+  private updateGalaxy(deltaMs: number): void {
+    if (!this.galaxyActive) {
+      this.galaxyActive = true;
+      this.galaxyAngle = 0;
+    }
+    this.galaxyAngle += deltaMs * 0.0005;
+    this.galaxySpawnTimer += deltaMs;
+    if (this.galaxySpawnTimer < 10) return;
+    this.galaxySpawnTimer = 0;
+    const tuning = getFxPresetTuning(this.config.preset);
+    const baseCount = Math.round(5 * this.config.particleDensity * tuning.trailMultiplier);
+    for (let i = 0; i < baseCount; i++) {
+      const t = this.random.nextFloat();
+      const armAngle = this.galaxyAngle + t * Math.PI * 4 + (i % 2 === 0 ? 0 : Math.PI * 2 / 3) + this.random.signed(0.4);
+      const radius = 30 + t * 280 + this.random.signed(15);
+      const x = 540 + Math.cos(armAngle) * radius;
+      const y = 550 + Math.sin(armAngle) * radius * 0.4;
+      const tangentAngle = armAngle + Math.PI * 0.5;
+      const speed = 8 + t * 16;
+      const vx = Math.cos(tangentAngle) * speed + this.random.signed(3);
+      const vy = Math.sin(tangentAngle) * speed * 0.4 + this.random.signed(2) - 4;
+      const behavior = t < 0.3 ? "bass" : t > 0.7 ? "high" : "neutral";
+      const sourceColor = colorForPitch(this.config.palette, 40 + Math.round(t * 56));
+      const color = this.stardustColorFor(behavior, sourceColor, 40 + Math.round(t * 56));
+      const textureRoll = this.random.nextFloat();
+      const textureId: FxTextureId = textureRoll < 0.3 ? "spark-field" : textureRoll < 0.55 ? "micro-spark" : textureRoll < 0.8 ? "particle-cluster" : "soft-bokeh";
+      const textureScale = textureId === "soft-bokeh" ? 0.35 : textureId === "spark-field" ? 0.22 : textureId === "particle-cluster" ? 0.2 : 0.17;
+      this.tryAcquireParticle(
+        { x, y },
+        { x: vx, y: vy },
+        this.config.particleLifetimeMs * this.random.range(0.7, 2.0),
+        this.random.nextFloat() > 0.92 ? 0xffffff : color,
+        this.config.particleSize * tuning.particleScale * textureScale * this.random.range(0.7, 1.5),
+        textureId,
+        (0.45 + this.config.glowIntensity * 0.4) * this.random.range(0.8, 1.2)
+      );
+    }
+    if (this.config.smokeEnabled && tuning.smokeMultiplier > 0 && this.random.nextFloat() < 0.25) {
+      const smokeAngle = this.galaxyAngle * 0.6 + this.random.signed(0.6);
+      const smokeRadius = 50 + this.random.range(0, 180);
+      this.tryAcquireSmoke(
+        { x: 540 + Math.cos(smokeAngle) * smokeRadius, y: 550 + Math.sin(smokeAngle) * smokeRadius * 0.4 },
+        { x: Math.cos(smokeAngle + 1) * 4, y: -2 },
+        this.config.particleLifetimeMs * 2.2,
+        0x9944cc,
+        this.config.particleSize * 15 * this.random.range(0.8, 1.2),
+        0.06 * tuning.smokeMultiplier,
+        "volume",
+        "neutral"
+      );
     }
   }
 

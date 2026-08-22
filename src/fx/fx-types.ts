@@ -2,7 +2,7 @@ import type { Point } from "../geometry/models";
 import type { PieceAnimationFrame } from "../animation/models";
 
 export type VisualFxPalette = "artwork" | "gold" | "neon" | "pitch-gradient";
-export type VisualFxPreset = "stardust-stream" | "cinematic-orbit" | "smoke-ember" | "golden-dust" | "neon-ribbon" | "minimal";
+export type VisualFxPreset = "stardust-stream" | "cinematic-orbit" | "smoke-ember" | "golden-dust" | "neon-ribbon" | "vortex-fire" | "galaxy-swirl" | "ethereal-white" | "minimal";
 export type FxSmokeLayer = "core" | "volume" | "residue";
 export type FxSmokeBehavior = "neutral" | "bass" | "high";
 
@@ -85,11 +85,11 @@ export interface FxDebugStats {
   transformMismatchCount: number;
 }
 
-export const MAX_ACTIVE_PARTICLES = 1200;
-export const MAX_ACTIVE_SMOKE = 384;
+export const MAX_ACTIVE_PARTICLES = 3200;
+export const MAX_ACTIVE_SMOKE = 512;
 export const NATURAL_SMOKE_LAYER_COUNT = 3;
-export const MAX_SMOKE_SPAWNS_PER_FRAME = 16;
-export const MAX_PARTICLE_SPAWNS_PER_FRAME = 220;
+export const MAX_SMOKE_SPAWNS_PER_FRAME = 28;
+export const MAX_PARTICLE_SPAWNS_PER_FRAME = 420;
 
 export const DEFAULT_VISUAL_FX_CONFIG: VisualFxConfig = {
   enabled: true,
@@ -112,7 +112,7 @@ export const DEFAULT_VISUAL_FX_CONFIG: VisualFxConfig = {
   smokeLayerCount: NATURAL_SMOKE_LAYER_COUNT,
   smokeEmissionIntervalMs: 48,
   smokeFrameBudget: MAX_SMOKE_SPAWNS_PER_FRAME,
-  particleFrameBudget: 180,
+  particleFrameBudget: 360,
   bassThreshold: 48,
   highThreshold: 84,
   particleSize: 0.9,

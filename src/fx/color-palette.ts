@@ -13,8 +13,9 @@ export function colorForPitch(palette: VisualFxPalette, midiNote: number): numbe
   if (palette === "neon") return midiNote >= 72 ? 0xff72e8 : midiNote < 48 ? 0x54dfff : 0x7dffb2;
   if (palette === "pitch-gradient") {
     const t = Math.max(0, Math.min(1, (midiNote - 21) / 87));
-    if (t < 0.5) return rgb(mix(47, 64, t * 2), mix(65, 220, t * 2), mix(170, 192, t * 2));
-    return rgb(mix(64, 255, (t - 0.5) * 2), mix(220, 205, (t - 0.5) * 2), mix(192, 115, (t - 0.5) * 2));
+    if (t < 0.3) return rgb(mix(180, 255, t / 0.3), mix(40, 120, t / 0.3), mix(30, 20, t / 0.3));
+    if (t < 0.6) return rgb(mix(255, 255, (t - 0.3) / 0.3), mix(120, 200, (t - 0.3) / 0.3), mix(20, 80, (t - 0.3) / 0.3));
+    return rgb(mix(255, 200, (t - 0.6) / 0.4), mix(200, 160, (t - 0.6) / 0.4), mix(80, 255, (t - 0.6) / 0.4));
   }
-  return midiNote < 48 ? 0x65b9d8 : midiNote >= 84 ? 0xffdb8a : 0x86d8ff;
+  return midiNote < 48 ? 0xff6633 : midiNote >= 84 ? 0xffaa44 : 0xff8822;
 }
