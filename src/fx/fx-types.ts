@@ -2,6 +2,9 @@ import type { Point } from "../geometry/models";
 import type { PieceAnimationFrame } from "../animation/models";
 
 export type VisualFxPalette = "artwork" | "gold" | "neon" | "pitch-gradient";
+export type VisualFxPreset = "cinematic-orbit" | "smoke-ember" | "golden-dust" | "neon-ribbon" | "minimal";
+export type FxSmokeLayer = "core" | "volume" | "residue";
+export type FxSmokeBehavior = "neutral" | "bass" | "high";
 
 export interface VisualFxConfig {
   enabled: boolean;
@@ -18,6 +21,18 @@ export interface VisualFxConfig {
   impactIntensity: number;
   lightingIntensity: number;
   palette: VisualFxPalette;
+  preset: VisualFxPreset;
+  smokeEnabled: boolean;
+  smokeDensity: number;
+  smokeLayerCount: number;
+  smokeEmissionIntervalMs: number;
+  smokeFrameBudget: number;
+  particleFrameBudget: number;
+  bassThreshold: number;
+  highThreshold: number;
+  particleSize: number;
+  pathCurvature: number;
+  revealDurationMs: number;
 }
 
 export interface FxNoteEvent {
@@ -50,15 +65,31 @@ export interface FxPieceLockEvent {
 export interface FxDebugStats {
   activeParticles: number;
   maxActiveParticles: number;
+  activeSmoke: number;
+  maxActiveSmoke: number;
   activeGlows: number;
   activeImpacts: number;
   droppedParticles: number;
+  droppedSmoke: number;
+  droppedByPoolCapacity: number;
+  droppedByFrameBudget: number;
+  droppedByInvalidEvent: number;
+  droppedByInactiveState: number;
+  emittedParticles: number;
+  emittedSmoke: number;
+  particleFrameBudget: number;
+  smokeFrameBudget: number;
+  smokeLayerCount: number;
   lastFxEvent: string;
   estimatedFps: number;
   transformMismatchCount: number;
 }
 
 export const MAX_ACTIVE_PARTICLES = 1200;
+export const MAX_ACTIVE_SMOKE = 180;
+export const NATURAL_SMOKE_LAYER_COUNT = 3;
+export const MAX_SMOKE_SPAWNS_PER_FRAME = 12;
+export const MAX_PARTICLE_SPAWNS_PER_FRAME = 24;
 
 export const DEFAULT_VISUAL_FX_CONFIG: VisualFxConfig = {
   enabled: true,
@@ -74,7 +105,19 @@ export const DEFAULT_VISUAL_FX_CONFIG: VisualFxConfig = {
   particleLifetimeMs: 350,
   impactIntensity: 0.35,
   lightingIntensity: 0.15,
-  palette: "artwork"
+  palette: "artwork",
+  preset: "cinematic-orbit",
+  smokeEnabled: true,
+  smokeDensity: 0.35,
+  smokeLayerCount: NATURAL_SMOKE_LAYER_COUNT,
+  smokeEmissionIntervalMs: 44,
+  smokeFrameBudget: MAX_SMOKE_SPAWNS_PER_FRAME,
+  particleFrameBudget: MAX_PARTICLE_SPAWNS_PER_FRAME,
+  bassThreshold: 48,
+  highThreshold: 84,
+  particleSize: 1,
+  pathCurvature: 0.42,
+  revealDurationMs: 620
 };
 
 export function clamp(value: number, min = 0, max = 1): number {
@@ -90,8 +133,18 @@ export function normalizeVisualFxConfig(value?: Partial<VisualFxConfig>): Visual
     particleDensity: clamp(merged.particleDensity),
     impactIntensity: clamp(merged.impactIntensity),
     lightingIntensity: clamp(merged.lightingIntensity),
+    smokeDensity: clamp(merged.smokeDensity),
+    smokeLayerCount: Math.max(1, Math.min(NATURAL_SMOKE_LAYER_COUNT, Math.round(Number.isFinite(merged.smokeLayerCount) ? merged.smokeLayerCount : NATURAL_SMOKE_LAYER_COUNT))),
+    smokeEmissionIntervalMs: Math.max(24, Math.min(120, Number.isFinite(merged.smokeEmissionIntervalMs) ? merged.smokeEmissionIntervalMs : DEFAULT_VISUAL_FX_CONFIG.smokeEmissionIntervalMs)),
+    smokeFrameBudget: Math.max(1, Math.min(MAX_SMOKE_SPAWNS_PER_FRAME, Math.round(Number.isFinite(merged.smokeFrameBudget) ? merged.smokeFrameBudget : DEFAULT_VISUAL_FX_CONFIG.smokeFrameBudget))),
+    particleFrameBudget: Math.max(1, Math.min(MAX_PARTICLE_SPAWNS_PER_FRAME, Math.round(Number.isFinite(merged.particleFrameBudget) ? merged.particleFrameBudget : DEFAULT_VISUAL_FX_CONFIG.particleFrameBudget))),
+    bassThreshold: Math.max(0, Math.min(127, Math.round(Number.isFinite(merged.bassThreshold) ? merged.bassThreshold : DEFAULT_VISUAL_FX_CONFIG.bassThreshold))),
+    highThreshold: Math.max(0, Math.min(127, Math.round(Number.isFinite(merged.highThreshold) ? merged.highThreshold : DEFAULT_VISUAL_FX_CONFIG.highThreshold))),
+    particleSize: Math.max(0.35, Math.min(2.5, Number.isFinite(merged.particleSize) ? merged.particleSize : DEFAULT_VISUAL_FX_CONFIG.particleSize)),
+    pathCurvature: clamp(merged.pathCurvature),
     glowDurationMs: Math.max(40, Number.isFinite(merged.glowDurationMs) ? merged.glowDurationMs : DEFAULT_VISUAL_FX_CONFIG.glowDurationMs),
-    particleLifetimeMs: Math.max(40, Number.isFinite(merged.particleLifetimeMs) ? merged.particleLifetimeMs : DEFAULT_VISUAL_FX_CONFIG.particleLifetimeMs)
+    particleLifetimeMs: Math.max(40, Number.isFinite(merged.particleLifetimeMs) ? merged.particleLifetimeMs : DEFAULT_VISUAL_FX_CONFIG.particleLifetimeMs),
+    revealDurationMs: Math.max(120, Number.isFinite(merged.revealDurationMs) ? merged.revealDurationMs : DEFAULT_VISUAL_FX_CONFIG.revealDurationMs)
   };
 }
 

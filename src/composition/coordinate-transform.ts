@@ -58,6 +58,9 @@ export interface PianoPlacementConfig {
 
 export const DEFAULT_PIANO_PLACEMENT: PianoPlacementConfig = { alignX: "center", alignY: "bottom", zoom: 1, panX: 0, panY: 0 };
 
+export type ArtworkPlacementConfig = PianoPlacementConfig;
+export const DEFAULT_ARTWORK_PLACEMENT: ArtworkPlacementConfig = { alignX: "center", alignY: "center", zoom: 1, panX: 0, panY: 0 };
+
 export function computeAlignedPlacement(sourceWidth: number, sourceHeight: number, region: Bounds, config: PianoPlacementConfig): RegionPlacement {
   if (!sourceWidth || !sourceHeight) return { offsetX: 0, offsetY: 0, scale: 1 };
   const baseScale = Math.min(region.width / sourceWidth, region.height / sourceHeight);

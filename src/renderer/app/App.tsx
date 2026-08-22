@@ -24,8 +24,8 @@ import { PuzzleRenderer } from "../../puzzle/puzzle-renderer";
 import { buildExpressionResult } from "../../expression/expression-engine";
 import { DEFAULT_EXPRESSION_SETTINGS, normalizeExpressionSettings } from "../../expression/expression-store";
 import type { ExpressionResult, ExpressionSettings } from "../../expression/models";
-import { computeRegionPlacement, computeAlignedPlacement, projectGeometry, projectSpawnPoints, toAbsolutePlacement, drawPlacementPreview, DEFAULT_PIANO_PLACEMENT } from "../../composition/coordinate-transform";
-import type { PianoPlacementConfig, PlacementAlignX, PlacementAlignY } from "../../composition/coordinate-transform";
+import { computeAlignedPlacement, projectGeometry, projectSpawnPoints, toAbsolutePlacement, drawPlacementPreview, DEFAULT_PIANO_PLACEMENT, DEFAULT_ARTWORK_PLACEMENT } from "../../composition/coordinate-transform";
+import type { ArtworkPlacementConfig, PianoPlacementConfig, PlacementAlignX, PlacementAlignY } from "../../composition/coordinate-transform";
 import { normalizeCompositionLayout } from "../../composition/composition-store";
 import { PianoSynth } from "../../audio/piano-synth";
 import { VisualFxEngine } from "../../fx/fx-engine";
@@ -87,6 +87,9 @@ export function App() {
   const [pianoPlacement, setPianoPlacement] = useState<PianoPlacementConfig>(DEFAULT_PIANO_PLACEMENT);
   const pianoPlacementRef = useRef(pianoPlacement);
   const placementPreviewRef = useRef<HTMLCanvasElement>(null);
+  const [artworkPlacement, setArtworkPlacement] = useState<ArtworkPlacementConfig>(DEFAULT_ARTWORK_PLACEMENT);
+  const artworkPlacementRef = useRef(artworkPlacement);
+  const artworkPlacementPreviewRef = useRef<HTMLCanvasElement>(null);
 
   // Animation (Phase 6)
   const engineRef = useRef(new AnimationEngine());
@@ -128,7 +131,8 @@ export function App() {
   const expressionRef = useRef<ExpressionSettings>(expressionSettings);
   const expressionResultRef = useRef<ExpressionResult | undefined>(undefined);
 
-  useEffect(() => { referenceFrameRef.current = referenceFrame; geometryRef.current = geometry; mappingRef.current = mapping; timingRef.current = timingSettings; expressionRef.current = expressionSettings; showPieceBordersRef.current = showPieceBorders; audioEnabledRef.current = audioEnabled; calibZoomRef.current = calibZoom; pianoPlacementRef.current = pianoPlacement; }, [referenceFrame, geometry, mapping, timingSettings, expressionSettings, showPieceBorders, audioEnabled, calibZoom, pianoPlacement]);
+  useEffect(() => { referenceFrameRef.current = referenceFrame; geometryRef.current = geometry; mappingRef.current = mapping; timingRef.current = timingSettings; expressionRef.current = expressionSettings; showPieceBordersRef.current = showPieceBorders; audioEnabledRef.current = audioEnabled; calibZoomRef.current = calibZoom; pianoPlacementRef.current = pianoPlacement; artworkPlacementRef.current = artworkPlacement; }, [referenceFrame, geometry, mapping, timingSettings, expressionSettings, showPieceBorders, audioEnabled, calibZoom, pianoPlacement, artworkPlacement]);
+  useEffect(() => { setArtworkPlacement(DEFAULT_ARTWORK_PLACEMENT); }, [puzzleArtwork?.id]);
   useEffect(() => { fxRef.current?.setConfig(fxSettings); }, [fxSettings]);
   useEffect(() => {
     const tabs = document.querySelector<HTMLElement>(".inspector-tabs");
@@ -146,24 +150,34 @@ export function App() {
     panel.hidden = true;
     panel.innerHTML = `
       <div class="fx-dom-heading">Visual FX / جلوه‌های بصری</div>
+      <label>FX Preset<select data-fx="preset"><option value="cinematic-orbit">Cinematic Orbit</option><option value="smoke-ember">Smoke & Ember</option><option value="golden-dust">Golden Dust</option><option value="neon-ribbon">Neon Ribbon</option><option value="minimal">Minimal</option></select></label>
       <label class="toggle-row"><span>Enable Visual FX</span><input data-fx="enabled" type="checkbox"></label>
       <label class="toggle-row"><span>Keyboard Glow</span><input data-fx="glowEnabled" type="checkbox"></label>
       <label class="toggle-row"><span>Particle Trails</span><input data-fx="trailEnabled" type="checkbox"></label>
+      <label class="toggle-row"><span>Smoke Layer</span><input data-fx="smokeEnabled" type="checkbox"></label>
       <label class="toggle-row"><span>Lock-in Impact</span><input data-fx="lockImpactEnabled" type="checkbox"></label>
       <label class="toggle-row"><span>Artwork Lighting</span><input data-fx="lightingEnabled" type="checkbox"></label>
       <label class="range-label">Glow Intensity <output data-fx-value="glowIntensity"></output></label>
       <input data-fx="glowIntensity" type="range" min="0" max="1" step="0.01">
       <label class="range-label">Particle Density <output data-fx-value="particleDensity"></output></label>
       <input data-fx="particleDensity" type="range" min="0" max="1" step="0.01">
+      <label class="range-label">Smoke Density <output data-fx-value="smokeDensity"></output></label>
+      <input data-fx="smokeDensity" type="range" min="0" max="1" step="0.01">
+      <label class="range-label">Particle Size <output data-fx-value="particleSize"></output></label>
+      <input data-fx="particleSize" type="range" min="0.35" max="2.5" step="0.05">
       <label class="range-label">Trail Length <output data-fx-value="trailLength"></output></label>
       <input data-fx="trailLength" type="range" min="0" max="1" step="0.01">
+      <label class="range-label">Path Curvature <output data-fx-value="pathCurvature"></output></label>
+      <input data-fx="pathCurvature" type="range" min="0" max="1" step="0.01">
+      <label class="range-label">Reveal Duration <output data-fx-value="revealDurationMs"></output> ms</label>
+      <input data-fx="revealDurationMs" type="range" min="120" max="1400" step="20">
       <label class="range-label">Impact Intensity <output data-fx-value="impactIntensity"></output></label>
       <input data-fx="impactIntensity" type="range" min="0" max="1" step="0.01">
       <label class="range-label">Lighting Intensity <output data-fx-value="lightingIntensity"></output></label>
       <input data-fx="lightingIntensity" type="range" min="0" max="1" step="0.01">
       <label>Color Palette<select data-fx="palette"><option value="artwork">Artwork</option><option value="gold">Gold</option><option value="neon">Neon</option><option value="pitch-gradient">Pitch Gradient</option></select></label>
       <div class="control-row"><button type="button" data-fx-action="reset" class="ghost-button">Reset FX Settings</button><button type="button" data-fx-action="demo" class="ghost-button">Run Demo Scene</button></div>
-      <div class="debug-grid"><span>Active particles</span><strong data-fx-stat="activeParticles">0</strong><span>Estimated FPS</span><strong data-fx-stat="estimatedFps">60</strong><span>Dropped particles</span><strong data-fx-stat="droppedParticles">0</strong><span>Last FX event</span><strong data-fx-stat="lastFxEvent">none</strong></div>`;
+      <div class="debug-grid"><span>Active particles</span><strong data-fx-stat="activeParticles">0</strong><span>Particle capacity</span><strong data-fx-stat="maxActiveParticles">0</strong><span>Active smoke</span><strong data-fx-stat="activeSmoke">0</strong><span>Smoke capacity</span><strong data-fx-stat="maxActiveSmoke">0</strong><span>Smoke layers</span><strong data-fx-stat="smokeLayerCount">3</strong><span>Emitted particles/frame</span><strong data-fx-stat="emittedParticles">0</strong><span>Emitted smoke/frame</span><strong data-fx-stat="emittedSmoke">0</strong><span>Particle budget/frame</span><strong data-fx-stat="particleFrameBudget">24</strong><span>Smoke budget/frame</span><strong data-fx-stat="smokeFrameBudget">12</strong><span>Estimated FPS</span><strong data-fx-stat="estimatedFps">60</strong><span>Dropped particles</span><strong data-fx-stat="droppedParticles">0</strong><span>Dropped smoke</span><strong data-fx-stat="droppedSmoke">0</strong><span>Dropped: pool capacity</span><strong data-fx-stat="droppedByPoolCapacity">0</strong><span>Dropped: frame budget</span><strong data-fx-stat="droppedByFrameBudget">0</strong><span>Dropped: invalid event</span><strong data-fx-stat="droppedByInvalidEvent">0</strong><span>Dropped: inactive state</span><strong data-fx-stat="droppedByInactiveState">0</strong><span>Last FX event</span><strong data-fx-stat="lastFxEvent">none</strong></div>`;
 
     const content = Array.from(inspector.children).filter((child) => child !== inspector.firstElementChild && child !== tabs);
     const setContentVisible = (visible: boolean) => {
@@ -186,8 +200,21 @@ export function App() {
       });
       const stats = fxStats ?? fxRef.current?.getStats();
       panel.querySelector('[data-fx-stat="activeParticles"]')!.textContent = String(stats?.activeParticles ?? 0);
+      panel.querySelector('[data-fx-stat="maxActiveParticles"]')!.textContent = String(stats?.maxActiveParticles ?? 0);
+      panel.querySelector('[data-fx-stat="activeSmoke"]')!.textContent = String(stats?.activeSmoke ?? 0);
+      panel.querySelector('[data-fx-stat="maxActiveSmoke"]')!.textContent = String(stats?.maxActiveSmoke ?? 0);
+      panel.querySelector('[data-fx-stat="smokeLayerCount"]')!.textContent = String(stats?.smokeLayerCount ?? 3);
+      panel.querySelector('[data-fx-stat="emittedParticles"]')!.textContent = String(stats?.emittedParticles ?? 0);
+      panel.querySelector('[data-fx-stat="emittedSmoke"]')!.textContent = String(stats?.emittedSmoke ?? 0);
+      panel.querySelector('[data-fx-stat="particleFrameBudget"]')!.textContent = String(stats?.particleFrameBudget ?? 24);
+      panel.querySelector('[data-fx-stat="smokeFrameBudget"]')!.textContent = String(stats?.smokeFrameBudget ?? 12);
       panel.querySelector('[data-fx-stat="estimatedFps"]')!.textContent = String(stats?.estimatedFps ?? 60);
       panel.querySelector('[data-fx-stat="droppedParticles"]')!.textContent = String(stats?.droppedParticles ?? 0);
+      panel.querySelector('[data-fx-stat="droppedSmoke"]')!.textContent = String(stats?.droppedSmoke ?? 0);
+      panel.querySelector('[data-fx-stat="droppedByPoolCapacity"]')!.textContent = String(stats?.droppedByPoolCapacity ?? 0);
+      panel.querySelector('[data-fx-stat="droppedByFrameBudget"]')!.textContent = String(stats?.droppedByFrameBudget ?? 0);
+      panel.querySelector('[data-fx-stat="droppedByInvalidEvent"]')!.textContent = String(stats?.droppedByInvalidEvent ?? 0);
+      panel.querySelector('[data-fx-stat="droppedByInactiveState"]')!.textContent = String(stats?.droppedByInactiveState ?? 0);
       panel.querySelector('[data-fx-stat="lastFxEvent"]')!.textContent = String(stats?.lastFxEvent ?? "none");
     };
     const onInput = (event: Event) => {
@@ -228,6 +255,10 @@ export function App() {
   useEffect(() => {
     const panel = document.querySelector<HTMLElement>(".fx-dom-panel");
     if (!panel) return;
+    if (!panel.querySelector("[data-fx-asset-gallery]")) {
+      const gallery = fxRef.current?.createAssetGallery();
+      if (gallery) panel.appendChild(gallery);
+    }
     panel.querySelectorAll<HTMLInputElement | HTMLSelectElement>("[data-fx]").forEach((control) => {
       const key = control.dataset.fx as keyof VisualFxConfig;
       const value = fxSettings[key];
@@ -241,10 +272,117 @@ export function App() {
     });
     const stats = fxStats ?? fxRef.current?.getStats();
     panel.querySelector('[data-fx-stat="activeParticles"]')!.textContent = String(stats?.activeParticles ?? 0);
+    panel.querySelector('[data-fx-stat="maxActiveParticles"]')!.textContent = String(stats?.maxActiveParticles ?? 0);
+    panel.querySelector('[data-fx-stat="activeSmoke"]')!.textContent = String(stats?.activeSmoke ?? 0);
+    panel.querySelector('[data-fx-stat="maxActiveSmoke"]')!.textContent = String(stats?.maxActiveSmoke ?? 0);
+    panel.querySelector('[data-fx-stat="smokeLayerCount"]')!.textContent = String(stats?.smokeLayerCount ?? 3);
+    panel.querySelector('[data-fx-stat="emittedParticles"]')!.textContent = String(stats?.emittedParticles ?? 0);
+    panel.querySelector('[data-fx-stat="emittedSmoke"]')!.textContent = String(stats?.emittedSmoke ?? 0);
+    panel.querySelector('[data-fx-stat="particleFrameBudget"]')!.textContent = String(stats?.particleFrameBudget ?? 24);
+    panel.querySelector('[data-fx-stat="smokeFrameBudget"]')!.textContent = String(stats?.smokeFrameBudget ?? 12);
     panel.querySelector('[data-fx-stat="estimatedFps"]')!.textContent = String(stats?.estimatedFps ?? 60);
     panel.querySelector('[data-fx-stat="droppedParticles"]')!.textContent = String(stats?.droppedParticles ?? 0);
+    panel.querySelector('[data-fx-stat="droppedSmoke"]')!.textContent = String(stats?.droppedSmoke ?? 0);
+    panel.querySelector('[data-fx-stat="droppedByPoolCapacity"]')!.textContent = String(stats?.droppedByPoolCapacity ?? 0);
+    panel.querySelector('[data-fx-stat="droppedByFrameBudget"]')!.textContent = String(stats?.droppedByFrameBudget ?? 0);
+    panel.querySelector('[data-fx-stat="droppedByInvalidEvent"]')!.textContent = String(stats?.droppedByInvalidEvent ?? 0);
+    panel.querySelector('[data-fx-stat="droppedByInactiveState"]')!.textContent = String(stats?.droppedByInactiveState ?? 0);
     panel.querySelector('[data-fx-stat="lastFxEvent"]')!.textContent = String(stats?.lastFxEvent ?? "none");
   }, [fxSettings, fxStats]);
+
+  useEffect(() => {
+    const card = Array.from(document.querySelectorAll<HTMLElement>(".asset-card"))
+      .find((candidate) => candidate.textContent?.includes("Puzzle Artwork"));
+    if (!card || document.querySelector("[data-artwork-placement-panel]")) return;
+
+    const panel = document.createElement("div");
+    panel.dataset.artworkPlacementPanel = "true";
+    panel.className = "artwork-placement-dom";
+    panel.innerHTML = `
+      <div class="fx-dom-heading">Artwork Framing / کادر تصویر پازل</div>
+      <label class="range-label">Zoom <output data-artwork-value="zoom"></output></label>
+      <input data-artwork="zoom" type="range" min="0.5" max="3" step="0.05">
+      <label class="range-label">Pan X <output data-artwork-value="panX"></output></label>
+      <input data-artwork="panX" type="range" min="-640" max="640" step="1">
+      <label class="range-label">Pan Y <output data-artwork-value="panY"></output></label>
+      <input data-artwork="panY" type="range" min="-520" max="520" step="1">
+      <div class="control-row">
+        <label>Horizontal<select data-artwork="alignX"><option value="left">Left</option><option value="center">Center</option><option value="right">Right</option></select></label>
+        <label>Vertical<select data-artwork="alignY"><option value="top">Top</option><option value="center">Center</option><option value="bottom">Bottom</option></select></label>
+      </div>
+      <canvas data-artwork-placement-preview class="density-preview artwork-placement-preview" width="248" height="166"></canvas>
+      <small class="anchor-hint">Drag the preview to reposition the artwork. This framing is used by the generated puzzle pieces.</small>
+      <button type="button" data-artwork-action="reset" class="ghost-button mapping-button">Reset Artwork Framing</button>`;
+    card.appendChild(panel);
+
+    const onInput = (event: Event) => {
+      const control = event.target as HTMLInputElement | HTMLSelectElement;
+      const key = control.dataset.artwork as keyof ArtworkPlacementConfig | undefined;
+      if (!key || key === "alignX" || key === "alignY") return;
+      setArtworkPlacement((current) => ({ ...current, [key]: Number(control.value) }));
+    };
+    const onChange = (event: Event) => {
+      const control = event.target as HTMLInputElement | HTMLSelectElement;
+      const key = control.dataset.artwork as keyof ArtworkPlacementConfig | undefined;
+      if (key !== "alignX" && key !== "alignY") return;
+      setArtworkPlacement((current) => ({ ...current, [key]: control.value as ArtworkPlacementConfig[typeof key] }));
+    };
+    const onClick = (event: Event) => {
+      if ((event.target as HTMLElement).dataset.artworkAction === "reset") setArtworkPlacement(DEFAULT_ARTWORK_PLACEMENT);
+    };
+    const preview = panel.querySelector<HTMLCanvasElement>("[data-artwork-placement-preview]");
+    let dragStart: { x: number; y: number; panX: number; panY: number } | undefined;
+    const onPointerDown = (event: PointerEvent) => {
+      if (!preview || !puzzleArtworkImageRef.current) return;
+      dragStart = { x: event.clientX, y: event.clientY, panX: artworkPlacementRef.current.panX, panY: artworkPlacementRef.current.panY };
+      preview.setPointerCapture?.(event.pointerId);
+    };
+    const onPointerMove = (event: PointerEvent) => {
+      if (!dragStart || !preview) return;
+      const region = DEFAULT_LAYOUT.puzzleRegion;
+      const canvasScale = Math.min(preview.width / region.width, preview.height / region.height);
+      setArtworkPlacement((current) => ({
+        ...current,
+        panX: dragStart!.panX + (event.clientX - dragStart!.x) / canvasScale,
+        panY: dragStart!.panY + (event.clientY - dragStart!.y) / canvasScale
+      }));
+    };
+    const onPointerUp = () => { dragStart = undefined; };
+    preview?.addEventListener("pointerdown", onPointerDown);
+    window.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("pointerup", onPointerUp);
+    panel.addEventListener("input", onInput);
+    panel.addEventListener("change", onChange);
+    panel.addEventListener("click", onClick);
+    return () => {
+      preview?.removeEventListener("pointerdown", onPointerDown);
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerup", onPointerUp);
+      panel.removeEventListener("input", onInput);
+      panel.removeEventListener("change", onChange);
+      panel.removeEventListener("click", onClick);
+      panel.remove();
+    };
+  }, []);
+
+  useEffect(() => {
+    const panel = document.querySelector<HTMLElement>("[data-artwork-placement-panel]");
+    if (!panel) return;
+    panel.style.display = puzzleArtwork ? "" : "none";
+    panel.querySelectorAll<HTMLInputElement | HTMLSelectElement>("[data-artwork]").forEach((control) => {
+      const key = control.dataset.artwork as keyof ArtworkPlacementConfig;
+      const value = artworkPlacement[key];
+      control.value = String(value);
+    });
+    panel.querySelectorAll<HTMLOutputElement>("[data-artwork-value]").forEach((output) => {
+      const key = output.dataset.artworkValue as keyof ArtworkPlacementConfig;
+      const value = artworkPlacement[key];
+      output.textContent = typeof value === "number" ? (key === "zoom" ? `${value.toFixed(2)}x` : `${Math.round(value)}`) : String(value);
+    });
+    const preview = panel.querySelector<HTMLCanvasElement>("[data-artwork-placement-preview]");
+    const image = puzzleArtworkImageRef.current;
+    if (preview && image) drawPlacementPreview(preview, image, DEFAULT_LAYOUT.puzzleRegion, artworkPlacement);
+  }, [artworkPlacement, puzzleArtwork]);
 
   function applyImageTransform(explicitDims?: { width: number; height: number }) {
     const app = pixi.current;
@@ -262,7 +400,7 @@ export function App() {
   function projectedGeometryFor(): GeometryResult | undefined {
     const geo = geometryRef.current; const artwork = puzzleArtworkImageRef.current;
     if (!geo || !artwork) return undefined;
-    const placement = computeRegionPlacement(artwork.naturalWidth, artwork.naturalHeight, DEFAULT_LAYOUT.puzzleRegion);
+    const placement = computeAlignedPlacement(artwork.naturalWidth, artwork.naturalHeight, DEFAULT_LAYOUT.puzzleRegion, artworkPlacementRef.current);
     return projectGeometry(geo, DEFAULT_LAYOUT.puzzleRegion, placement);
   }
 
@@ -279,7 +417,7 @@ export function App() {
     const projected = projectedGeometryFor();
     if (!projected) { renderer.rebuild(EMPTY_GEOMETRY, k); return; }
     const artwork = puzzleArtworkImageRef.current!;
-    const placement = computeRegionPlacement(artwork.naturalWidth, artwork.naturalHeight, DEFAULT_LAYOUT.puzzleRegion);
+    const placement = computeAlignedPlacement(artwork.naturalWidth, artwork.naturalHeight, DEFAULT_LAYOUT.puzzleRegion, artworkPlacementRef.current);
     const absolutePlacement = toAbsolutePlacement(DEFAULT_LAYOUT.puzzleRegion, placement);
     renderer.rebuild(projected, k, artworkTextureRef.current, absolutePlacement, showPieceBordersRef.current);
   }
@@ -429,7 +567,7 @@ export function App() {
     framesRef.current = frames;
     rendererRef.current?.update(frames, puzzleTransformRef.current.k);
     setDebugFrames(frames);
-  }, [mapping, geometry, timingSettings, expressionSettings, midi, puzzleArtwork, referenceFrame, showPieceBorders]);
+  }, [mapping, geometry, timingSettings, expressionSettings, midi, puzzleArtwork, referenceFrame, showPieceBorders, artworkPlacement]);
 
   useEffect(() => { if (previewTab === "puzzle") applyPuzzleTransform(); }, [previewTab]);
 
