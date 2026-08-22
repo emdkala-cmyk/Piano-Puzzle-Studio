@@ -11,7 +11,12 @@ export type FxTextureId =
   | "dust-mote"
   | "soft-bokeh"
   | "light-streak"
-  | "dissolve-noise";
+  | "dissolve-noise"
+  | "soft-orb"
+  | "glow-orb"
+  | "sharp-dot"
+  | "warm-orb"
+  | "ice-orb";
 
 export type FxAssetType = "smoke" | "ember" | "spark" | "dust" | "bokeh" | "streak" | "noise-mask";
 export type FxAssetSource = "procedural" | "bundled" | "user";
@@ -53,5 +58,10 @@ export const FX_TEXTURE_IDS: readonly FxTextureId[] = [
   "dust-mote",
   "soft-bokeh",
   "light-streak",
-  "dissolve-noise"
+  "dissolve-noise",
+  "soft-orb",
+  "glow-orb",
+  "sharp-dot",
+  "warm-orb",
+  "ice-orb"
 ];

@@ -131,41 +131,33 @@ export class ParticlePool {
     state.rotation = this.random.range(0, Math.PI * 2);
     state.spin = this.random.signed(textureId === "light-streak" ? 1.4 : 3.8);
     state.phase = this.random.range(0, Math.PI * 2);
-    state.drag = textureId === "light-streak" ? 0.35 : textureId === "soft-bokeh" ? 0.55 : textureId === "spark-field" ? 0.85 : 1.1;
-    state.turbulence = textureId === "micro-streak"
-      ? 7.5 + this.random.signed(2)
-      : textureId === "spark-field"
-        ? 5.5 + this.random.signed(2)
-        : textureId === "particle-cluster"
-          ? 4.5 + this.random.signed(1.5)
-          : textureId === "micro-spark"
-            ? 3.2 + this.random.signed(1)
-            : 2.0 + this.random.signed(0.8);
-    state.turbulenceFrequency = textureId === "micro-streak"
-      ? 5.0 + this.random.signed(1.2)
-      : textureId === "spark-field"
-        ? 4.2 + this.random.signed(0.8)
-        : textureId === "particle-cluster"
-          ? 3.8 + this.random.signed(0.8)
-          : 3.0 + this.random.signed(0.6);
-    state.rise = textureId === "micro-spark" || textureId === "spark-field" || textureId === "particle-cluster" ? -4.0 + this.random.signed(1.5) : -1.0 + this.random.signed(0.5);
+    state.drag = textureId === "light-streak" ? 0.35 : textureId === "soft-bokeh" ? 0.55 : textureId === "glow-orb" ? 0.6 : 0.9;
+    state.turbulence = textureId === "sharp-dot"
+      ? 5.5 + this.random.signed(1.5)
+      : textureId === "glow-orb"
+        ? 4.0 + this.random.signed(1.2)
+        : textureId === "warm-orb" || textureId === "ice-orb"
+          ? 3.5 + this.random.signed(1)
+          : 2.5 + this.random.signed(0.8);
+    state.turbulenceFrequency = textureId === "sharp-dot"
+      ? 4.5 + this.random.signed(1)
+      : textureId === "glow-orb"
+        ? 3.5 + this.random.signed(0.8)
+        : 2.8 + this.random.signed(0.6);
+    state.rise = textureId === "sharp-dot" || textureId === "glow-orb" ? -4.0 + this.random.signed(1.5) : -1.0 + this.random.signed(0.5);
     // Longer visible lifetime - particles stay bright longer
     state.fadeInEnd = textureId === "light-streak"
       ? 0.02
-      : textureId === "soft-bokeh"
-        ? 0.06
-        : textureId === "micro-streak"
+      : textureId === "glow-orb"
+        ? 0.04
+        : textureId === "sharp-dot"
           ? 0.015
-          : textureId === "micro-spark" || textureId === "spark-field" || textureId === "particle-cluster"
-            ? 0.022
-            : 0.05;
-    state.fadeOutStart = textureId === "soft-bokeh"
-      ? 0.45
-      : textureId === "micro-streak"
-        ? 0.72
-        : textureId === "micro-spark" || textureId === "spark-field" || textureId === "particle-cluster"
-          ? 0.62
-          : 0.58;
+          : 0.05;
+    state.fadeOutStart = textureId === "glow-orb"
+      ? 0.5
+      : textureId === "sharp-dot"
+        ? 0.68
+        : 0.58;
     state.flipX = this.random.nextFloat() > 0.5;
     state.textureId = textureId;
     state.colorShift = this.random.range(0.08, 0.18);
@@ -176,7 +168,7 @@ export class ParticlePool {
     slot.visual.texture = this.texturePipeline?.getTexture(textureId) ?? Texture.WHITE;
     slot.visual.position.set(state.x, state.y);
     slot.visual.scale.set(state.flipX ? -state.scale : state.scale, state.scale);
-    if (textureId === "micro-streak" || textureId === "spark-field" || textureId === "light-streak") {
+    if (textureId === "light-streak") {
       state.rotation = Math.atan2(velocity.y, velocity.x) + this.random.signed(0.24);
     }
     slot.visual.rotation = state.rotation;
@@ -282,13 +274,18 @@ export class ParticlePool {
 }
 
 function blendModeForParticle(textureId: FxTextureId): "add" | "screen" | "normal" {
-  if (textureId === "micro-spark"
-    || textureId === "spark-field"
-    || textureId === "micro-streak"
-    || textureId === "particle-cluster"
+  if (textureId === "soft-orb"
+    || textureId === "glow-orb"
+    || textureId === "sharp-dot"
+    || textureId === "warm-orb"
+    || textureId === "ice-orb"
     || textureId === "ember-small"
     || textureId === "spark-cross"
-    || textureId === "dust-mote") return "add";
+    || textureId === "dust-mote"
+    || textureId === "micro-spark"
+    || textureId === "spark-field"
+    || textureId === "micro-streak"
+    || textureId === "particle-cluster") return "add";
   if (textureId === "light-streak" || textureId === "soft-bokeh") return "screen";
   return "screen";
 }

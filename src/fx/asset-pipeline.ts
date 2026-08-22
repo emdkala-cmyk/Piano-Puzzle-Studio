@@ -56,8 +56,8 @@ const DESCRIPTORS: Record<FxTextureId, FxAssetDescriptor> = {
     procedural: true,
     atlasGroup: "particle",
     fallbackId: "dust-mote",
-    width: 32,
-    height: 32,
+    width: 128,
+    height: 128,
     notes: "Soft warm ember with uneven alpha and bright core."
   },
   "spark-cross": {
@@ -69,8 +69,8 @@ const DESCRIPTORS: Record<FxTextureId, FxAssetDescriptor> = {
     procedural: true,
     atlasGroup: "particle",
     fallbackId: "ember-small",
-    width: 48,
-    height: 48,
+    width: 128,
+    height: 128,
     notes: "Broken four-point sparkle for lock impacts."
   },
   "micro-spark": {
@@ -82,8 +82,8 @@ const DESCRIPTORS: Record<FxTextureId, FxAssetDescriptor> = {
     procedural: true,
     atlasGroup: "particle",
     fallbackId: "spark-cross",
-    width: 48,
-    height: 48,
+    width: 128,
+    height: 128,
     notes: "Irregular granular spark with broken filaments for high-density energy streams."
   },
   "spark-field": {
@@ -121,8 +121,8 @@ const DESCRIPTORS: Record<FxTextureId, FxAssetDescriptor> = {
     procedural: true,
     atlasGroup: "particle",
     fallbackId: "dust-mote",
-    width: 64,
-    height: 64,
+    width: 128,
+    height: 128,
     notes: "Small asymmetric cluster of uneven micro-particles for natural stream breakup."
   },
   "dust-mote": {
@@ -134,8 +134,8 @@ const DESCRIPTORS: Record<FxTextureId, FxAssetDescriptor> = {
     procedural: true,
     atlasGroup: "particle",
     fallbackId: "ember-small",
-    width: 24,
-    height: 24,
+    width: 96,
+    height: 96,
     notes: "Tiny asymmetrical dust mote, not a geometric disk."
   },
   "soft-bokeh": {
@@ -147,8 +147,8 @@ const DESCRIPTORS: Record<FxTextureId, FxAssetDescriptor> = {
     procedural: true,
     atlasGroup: "particle",
     fallbackId: "dust-mote",
-    width: 96,
-    height: 96,
+    width: 256,
+    height: 256,
     notes: "Broken soft highlight reserved for high-note shimmer."
   },
   "light-streak": {
@@ -176,6 +176,71 @@ const DESCRIPTORS: Record<FxTextureId, FxAssetDescriptor> = {
     width: 128,
     height: 128,
     notes: "Deterministic grayscale noise reserved for Dissolve Reveal."
+  },
+  "soft-orb": {
+    id: "soft-orb",
+    type: "bokeh",
+    source: "procedural",
+    license: "Project-owned procedural texture",
+    commercialUse: true,
+    procedural: true,
+    atlasGroup: "particle",
+    fallbackId: "soft-bokeh",
+    width: 256,
+    height: 256,
+    notes: "Smooth round soft-glow particle with gaussian falloff and circular mask."
+  },
+  "glow-orb": {
+    id: "glow-orb",
+    type: "bokeh",
+    source: "procedural",
+    license: "Project-owned procedural texture",
+    commercialUse: true,
+    procedural: true,
+    atlasGroup: "particle",
+    fallbackId: "soft-orb",
+    width: 256,
+    height: 256,
+    notes: "Large bright round orb with inner core and wide outer halo."
+  },
+  "sharp-dot": {
+    id: "sharp-dot",
+    type: "ember",
+    source: "procedural",
+    license: "Project-owned procedural texture",
+    commercialUse: true,
+    procedural: true,
+    atlasGroup: "particle",
+    fallbackId: "ember-small",
+    width: 128,
+    height: 128,
+    notes: "Small sharp bright round dot for sparkle effects."
+  },
+  "warm-orb": {
+    id: "warm-orb",
+    type: "bokeh",
+    source: "procedural",
+    license: "Project-owned procedural texture",
+    commercialUse: true,
+    procedural: true,
+    atlasGroup: "particle",
+    fallbackId: "soft-orb",
+    width: 256,
+    height: 256,
+    notes: "Warm-tinted round soft particle."
+  },
+  "ice-orb": {
+    id: "ice-orb",
+    type: "bokeh",
+    source: "procedural",
+    license: "Project-owned procedural texture",
+    commercialUse: true,
+    procedural: true,
+    atlasGroup: "particle",
+    fallbackId: "soft-orb",
+    width: 256,
+    height: 256,
+    notes: "Cool-tinted round soft particle."
   }
 };
 
@@ -403,6 +468,11 @@ export class FxAssetPipeline {
     if (id === "dust-mote") return paintDust;
     if (id === "soft-bokeh") return paintBokeh;
     if (id === "light-streak") return paintStreak;
+    if (id === "soft-orb") return paintSoftOrb;
+    if (id === "glow-orb") return paintGlowOrb;
+    if (id === "sharp-dot") return paintSharpDot;
+    if (id === "warm-orb") return paintWarmOrb;
+    if (id === "ice-orb") return paintIceOrb;
     return paintNoise;
   }
 }
@@ -478,64 +548,59 @@ function paintCloud(context: CanvasRenderingContext2D, width: number, height: nu
 
 function paintEmber(context: CanvasRenderingContext2D, width: number, height: number): void {
   const image = context.createImageData(width, height);
+  const R = 0.47;
   paintAlphaField(image, width, height, (x, y) => {
     const nx = x / width - 0.5;
     const ny = y / height - 0.5;
-    const radius = Math.hypot(nx, ny);
-    const angle = Math.atan2(ny, nx);
-    const n1 = fractalNoise(x / width * 6, y / height * 6, 5);
-    const n2 = fractalNoise(x / width * 12, y / height * 12, 15);
-    const n3 = fractalNoise(x / width * 24, y / height * 24, 25);
-    // Soft radial glow with organic distortion
-    const warpAngle = angle + n1 * 1.8 + n2 * 0.6;
-    const warpRadius = radius * (1 + Math.sin(warpAngle * 3) * 0.12 + n1 * 0.08);
-    const softCore = Math.exp(-warpRadius * warpRadius * 18) * (0.7 + n1 * 0.3);
-    // Organic tendrils
-    const tendril1 = Math.exp(-Math.pow((warpRadius - 0.18 - n2 * 0.06) / 0.04, 2) * 1.2) * (0.3 + n1 * 0.4);
-    const tendril2 = Math.exp(-Math.pow((warpRadius - 0.28 - n3 * 0.04) / 0.05, 2) * 0.8) * (0.15 + n2 * 0.25);
-    // Fine detail noise
-    const detail = n3 * 0.15;
-    return Math.max(0, Math.min(1, softCore + tendril1 * 0.35 + tendril2 * 0.2 + detail));
-  }, [255, 221, 126]);
+    const mask = circularMask(nx, ny, R);
+    if (mask <= 0) return 0;
+    const dist2 = nx * nx + ny * ny;
+    const n1 = fractalNoise(x / width * 6, y / height * 6, 23);
+    // Smooth round core
+    const core = Math.exp(-dist2 * 22) * (0.8 + n1 * 0.2);
+    const halo = Math.exp(-dist2 * 6) * 0.25;
+    return Math.max(0, Math.min(1, (core + halo) * mask));
+  }, [255, 230, 160]);
   context.putImageData(image, 0, 0);
 }
 
 function paintSpark(context: CanvasRenderingContext2D, width: number, height: number): void {
   const image = context.createImageData(width, height);
+  const R = 0.47;
   paintAlphaField(image, width, height, (x, y) => {
-    const dx = Math.abs(x - width * 0.5);
-    const dy = Math.abs(y - height * 0.5);
-    const noise = fractalNoise(x / width * 8, y / height * 8, 11);
-    const horizontal = Math.exp(-dx * 0.42) * Math.exp(-dy * 0.1);
-    const vertical = Math.exp(-dy * 0.42) * Math.exp(-dx * 0.1);
-    return Math.min(1, Math.max(horizontal, vertical) * (0.64 + noise * 0.36));
+    const nx = x / width - 0.5;
+    const ny = y / height - 0.5;
+    const mask = circularMask(nx, ny, R);
+    if (mask <= 0) return 0;
+    const dist2 = nx * nx + ny * ny;
+    const n1 = fractalNoise(x / width * 8, y / height * 8, 11);
+    // Bright round sparkle with 4-point star rays
+    const core = Math.exp(-dist2 * 30) * 0.9;
+    const halo = Math.exp(-dist2 * 10) * 0.35;
+    const angle = Math.atan2(ny, nx);
+    const ray4 = Math.pow(Math.abs(Math.sin(angle * 2)), 12) * Math.exp(-dist2 * 8) * 0.25;
+    return Math.min(1, (core + halo + ray4) * mask * (0.85 + n1 * 0.15));
   }, [255, 247, 210]);
   context.putImageData(image, 0, 0);
 }
 
 function paintMicroSpark(context: CanvasRenderingContext2D, width: number, height: number): void {
   const image = context.createImageData(width, height);
+  const R = 0.47;
   paintAlphaField(image, width, height, (x, y) => {
     const nx = x / width - 0.5;
     const ny = y / height - 0.5;
-    const distance = Math.hypot(nx, ny);
-    const angle = Math.atan2(ny, nx);
-    const noise1 = fractalNoise(x / width * 12, y / height * 12, 67);
-    const noise2 = fractalNoise(x / width * 24, y / height * 24, 77);
-    const core = Math.exp(-distance * distance * 92) * (0.62 + noise1 * 0.38);
-    let filaments = 0;
-    for (let arm = 0; arm < 4; arm += 1) {
-      const armAngle = arm * (Math.PI * 2 / 4) + 0.24 + noise1 * 0.3;
-      const tangent = Math.sin(angle - armAngle);
-      const radial = Math.cos(angle - armAngle);
-      const ray = Math.exp(-Math.abs(tangent) * 24) * Math.exp(-Math.max(0, radial) * 2.0);
-      const breakup = 0.2 + fractalNoise(x / width * 18 + arm * 2.7, y / height * 18 - arm * 1.3, 73 + arm) * 0.8;
-      filaments += ray * breakup * Math.max(0, radial);
-    }
-    const crumbs = Math.pow(Math.max(0, noise1 - 0.38), 1.5) * Math.max(0, 1 - distance * 2.0);
-    const sparks = Math.pow(Math.max(0, noise2 - 0.65), 2.2) * Math.max(0, 1 - distance * 1.8);
-    return Math.min(1, core + filaments * 0.28 + crumbs * 0.32 + sparks * 0.18);
-  }, [255, 246, 208]);
+    const mask = circularMask(nx, ny, R);
+    if (mask <= 0) return 0;
+    const dist2 = nx * nx + ny * ny;
+    const n1 = fractalNoise(x / width * 8, y / height * 8, 67);
+    const n2 = fractalNoise(x / width * 16, y / height * 16, 77);
+    // Smooth round core
+    const core = Math.exp(-dist2 * 28) * (0.8 + n1 * 0.2);
+    const glow = Math.exp(-dist2 * 8) * (0.3 + n2 * 0.15);
+    const sparkle = Math.pow(Math.max(0, n2 - 0.7), 3) * Math.max(0, 1 - dist2 * 12) * 0.4;
+    return Math.min(1, (core + glow + sparkle) * mask);
+  }, [255, 250, 220]);
   context.putImageData(image, 0, 0);
 }
 
@@ -582,17 +647,19 @@ function paintSparkField(context: CanvasRenderingContext2D, width: number, heigh
 
 function paintMicroStreak(context: CanvasRenderingContext2D, width: number, height: number): void {
   const image = context.createImageData(width, height);
+  const R = 0.47;
   paintAlphaField(image, width, height, (x, y) => {
-    const nx = x / width;
+    const nx = x / width - 0.5;
     const ny = y / height - 0.5;
-    const noise = fractalNoise(nx * 12, ny * 9 + 0.5, 83);
-    const center = Math.sin(nx * 8.7 + noise * 2.1) * 0.08 + Math.sin(nx * 19.3) * 0.025;
-    const distance = Math.abs(ny - center);
-    const core = Math.exp(-Math.pow(distance / (0.074 + Math.sin(nx * Math.PI) * 0.045), 2) * 1.6);
-    const filament = Math.exp(-Math.pow((distance - 0.14 - noise * 0.028) / 0.028, 2) * 2.2) * 0.32;
-    const breakup = 0.2 + fractalNoise(nx * 26 + 1.2, ny * 17 + 3.8, 89) * 0.8;
-    const taper = Math.pow(Math.max(0, Math.sin(nx * Math.PI)), 0.56);
-    return Math.min(1, (core + filament) * breakup * taper);
+    const mask = circularMask(nx, ny, R);
+    if (mask <= 0) return 0;
+    const dist2 = nx * nx + ny * ny;
+    const noise = fractalNoise(x / width * 12, y / height * 12, 83);
+    // Round core with slight elongation
+    const core = Math.exp(-dist2 * 26) * 0.85;
+    const glow = Math.exp(-dist2 * 8) * 0.3;
+    const sparkle = Math.pow(Math.max(0, noise - 0.65), 3) * Math.max(0, 1 - dist2 * 10) * 0.3;
+    return Math.min(1, (core + glow + sparkle) * mask);
   }, [255, 235, 162]);
   context.putImageData(image, 0, 0);
 }
@@ -628,40 +695,36 @@ function paintParticleCluster(context: CanvasRenderingContext2D, width: number, 
 
 function paintDust(context: CanvasRenderingContext2D, width: number, height: number): void {
   const image = context.createImageData(width, height);
+  const R = 0.47;
   paintAlphaField(image, width, height, (x, y) => {
     const nx = x / width - 0.5;
     const ny = y / height - 0.5;
-    const n1 = fractalNoise(x / width * 7, y / height * 7, 23);
-    const n2 = fractalNoise(x / width * 14, y / height * 14, 33);
-    // Soft organic shape with warp
-    const warpX = (fractalNoise(x / width * 3.5 + 3, y / height * 3.5, 29) - 0.5) * 0.2;
-    const warpY = (fractalNoise(x / width * 3.5 + 8, y / height * 3.5, 33) - 0.5) * 0.15;
-    const dx = (nx + warpX);
-    const dy = (ny + warpY);
-    const dist = dx * dx + dy * dy;
-    // Multi-layer soft glow
-    const core = Math.exp(-dist * 16) * (0.5 + n1 * 0.3);
-    const halo = Math.exp(-dist * 5) * (0.2 + n2 * 0.15);
-    return Math.max(0, Math.min(1, core + halo));
-  }, [241, 236, 216]);
+    const mask = circularMask(nx, ny, R);
+    if (mask <= 0) return 0;
+    const dist2 = nx * nx + ny * ny;
+    // Tiny smooth round dot
+    const core = Math.exp(-dist2 * 35) * 0.75;
+    const halo = Math.exp(-dist2 * 12) * 0.2;
+    return Math.max(0, Math.min(1, (core + halo) * mask));
+  }, [255, 252, 240]);
   context.putImageData(image, 0, 0);
 }
 
 function paintBokeh(context: CanvasRenderingContext2D, width: number, height: number): void {
   const image = context.createImageData(width, height);
+  const R = 0.47;
   paintAlphaField(image, width, height, (x, y) => {
-    const distance = Math.hypot(x - width * 0.5, y - height * 0.5) / (width * 0.5);
-    const angle = Math.atan2(y - height * 0.5, x - width * 0.5);
-    const n1 = fractalNoise(x / width * 5, y / height * 5, 31);
-    const n2 = fractalNoise(x / width * 10, y / height * 10, 41);
-    // Multi-layer soft glow
-    const innerGlow = Math.exp(-distance * distance * 12) * (0.4 + n1 * 0.2);
-    const outerGlow = Math.exp(-distance * distance * 4) * (0.15 + n2 * 0.1);
-    // Soft ring with organic break
-    const ringDist = Math.abs(distance - 0.35 - n1 * 0.08);
-    const ring = Math.exp(-ringDist * ringDist * 40) * (0.12 + n2 * 0.15) * Math.max(0, Math.sin(angle * 3 + n1 * 2) * 0.5 + 0.5);
-    return Math.min(1, Math.max(0, innerGlow + outerGlow + ring));
-  }, [255, 244, 192]);
+    const nx = x / width - 0.5;
+    const ny = y / height - 0.5;
+    const mask = circularMask(nx, ny, R);
+    if (mask <= 0) return 0;
+    const dist2 = nx * nx + ny * ny;
+    // Smooth round core — bright center
+    const core = Math.exp(-dist2 * 18) * 0.8;
+    // Wide soft halo
+    const halo = Math.exp(-dist2 * 4) * 0.25;
+    return Math.min(1, Math.max(0, (core + halo) * mask));
+  }, [255, 248, 210]);
   context.putImageData(image, 0, 0);
 }
 
@@ -725,6 +788,116 @@ function paintNoise(context: CanvasRenderingContext2D, width: number, height: nu
     image.data[index + 2] = value;
     image.data[index + 3] = 255;
   }
+  context.putImageData(image, 0, 0);
+}
+
+// ─── Round particle textures ────────────────────────────────────────────
+
+/**
+ * Circular mask — forces alpha to zero outside radius.
+ * Uses a very wide smoothstep zone (last 40%) so the edge is
+ * never visible even when the particle is scaled up many times.
+ * The result is a seamless dissolve with no hard boundary.
+ */
+function circularMask(nx: number, ny: number, radius: number): number {
+  const dist = Math.sqrt(nx * nx + ny * ny);
+  if (dist >= radius) return 0;
+  // Wide smoothstep over last 40% for ultra-soft dissolve
+  const t = dist / radius;
+  if (t < 0.6) return 1;
+  const s = (t - 0.6) / 0.4;
+  // Quintic smoothstep for even smoother falloff
+  return 1 - s * s * s * (s * (s * 6 - 15) + 10);
+}
+
+/** Smooth round soft-glow particle — gaussian falloff with circular mask */
+function paintSoftOrb(context: CanvasRenderingContext2D, width: number, height: number): void {
+  const image = context.createImageData(width, height);
+  const R = 0.47; // circular mask radius (slightly < 0.5)
+  paintAlphaField(image, width, height, (x, y) => {
+    const nx = x / width - 0.5;
+    const ny = y / height - 0.5;
+    const mask = circularMask(nx, ny, R);
+    if (mask <= 0) return 0;
+    const dist2 = nx * nx + ny * ny;
+    // Wide gaussian — smooth round glow
+    const core = Math.exp(-dist2 * 14);
+    const halo = Math.exp(-dist2 * 4) * 0.3;
+    return Math.min(1, (core + halo) * mask);
+  }, [255, 255, 255]);
+  context.putImageData(image, 0, 0);
+}
+
+/** Large bright round orb — strong inner core + wide outer halo with circular mask */
+function paintGlowOrb(context: CanvasRenderingContext2D, width: number, height: number): void {
+  const image = context.createImageData(width, height);
+  const R = 0.47;
+  paintAlphaField(image, width, height, (x, y) => {
+    const nx = x / width - 0.5;
+    const ny = y / height - 0.5;
+    const mask = circularMask(nx, ny, R);
+    if (mask <= 0) return 0;
+    const dist2 = nx * nx + ny * ny;
+    // Bright inner core
+    const core = Math.exp(-dist2 * 24) * 0.95;
+    // Medium glow
+    const midGlow = Math.exp(-dist2 * 8) * 0.5;
+    // Wide soft outer halo
+    const outerHalo = Math.exp(-dist2 * 2.5) * 0.25;
+    return Math.min(1, (core + midGlow + outerHalo) * mask);
+  }, [255, 255, 255]);
+  context.putImageData(image, 0, 0);
+}
+
+/** Small sharp bright dot — compact gaussian with circular mask */
+function paintSharpDot(context: CanvasRenderingContext2D, width: number, height: number): void {
+  const image = context.createImageData(width, height);
+  const R = 0.47;
+  paintAlphaField(image, width, height, (x, y) => {
+    const nx = x / width - 0.5;
+    const ny = y / height - 0.5;
+    const mask = circularMask(nx, ny, R);
+    if (mask <= 0) return 0;
+    const dist2 = nx * nx + ny * ny;
+    // Tight gaussian — small and bright
+    const core = Math.exp(-dist2 * 40);
+    const edge = Math.exp(-dist2 * 14) * 0.2;
+    return Math.min(1, (core + edge) * mask);
+  }, [255, 255, 255]);
+  context.putImageData(image, 0, 0);
+}
+
+/** Warm-tinted round soft particle with circular mask */
+function paintWarmOrb(context: CanvasRenderingContext2D, width: number, height: number): void {
+  const image = context.createImageData(width, height);
+  const R = 0.47;
+  paintAlphaField(image, width, height, (x, y) => {
+    const nx = x / width - 0.5;
+    const ny = y / height - 0.5;
+    const mask = circularMask(nx, ny, R);
+    if (mask <= 0) return 0;
+    const dist2 = nx * nx + ny * ny;
+    const core = Math.exp(-dist2 * 14) * 0.9;
+    const halo = Math.exp(-dist2 * 3.5) * 0.25;
+    return Math.min(1, (core + halo) * mask);
+  }, [255, 235, 200]);
+  context.putImageData(image, 0, 0);
+}
+
+/** Cool-tinted round soft particle with circular mask */
+function paintIceOrb(context: CanvasRenderingContext2D, width: number, height: number): void {
+  const image = context.createImageData(width, height);
+  const R = 0.47;
+  paintAlphaField(image, width, height, (x, y) => {
+    const nx = x / width - 0.5;
+    const ny = y / height - 0.5;
+    const mask = circularMask(nx, ny, R);
+    if (mask <= 0) return 0;
+    const dist2 = nx * nx + ny * ny;
+    const core = Math.exp(-dist2 * 14) * 0.9;
+    const halo = Math.exp(-dist2 * 3.5) * 0.25;
+    return Math.min(1, (core + halo) * mask);
+  }, [200, 230, 255]);
   context.putImageData(image, 0, 0);
 }
 

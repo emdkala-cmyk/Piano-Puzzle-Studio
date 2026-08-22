@@ -70,6 +70,12 @@ export class VisualFxEngine {
   private demoActive = false;
   private demoTimeMs = 0;
   private demoBackdrop: Graphics | undefined;
+  private demoFlashRings: { x: number; y: number; age: number; maxAge: number; maxRadius: number; color: number }[] = [];
+  private demoRevealGraphic: Graphics | undefined;
+  private demoRevealFlashMs = 0;
+  private demoAmbientGlow: Graphics | undefined;
+  private demoAmbientStars: Graphics | undefined;
+  private demoKeyboard: Graphics | undefined;
   private config: VisualFxConfig = DEFAULT_VISUAL_FX_CONFIG;
   private trails = new Map<string, TrailState>();
   private paused = false;
@@ -160,7 +166,7 @@ export class VisualFxEngine {
         textureId === "light-streak" ? 0.58 : 0.68
       );
     }
-    this.lightingController.noteOn(event.midiNote, event.normalizedVelocity);
+    if (this.config.lightingIntensity > 0.02) this.lightingController.noteOn(event.midiNote, event.normalizedVelocity);
     this.lastEvent = `note-on:${event.midiNote}`;
   }
 
@@ -254,14 +260,28 @@ export class VisualFxEngine {
     this.demoBackdrop.rect(0, 0, 1080, 1920).fill({ color: 0x050810, alpha: 1 });
     this.demoLayer.addChild(this.demoBackdrop);
 
-    // Ambient atmospheric glow layers
+    // Ambient atmospheric glow layers — gated by lightingIntensity
     this.drawAmbientGlow();
+    if (this.demoAmbientGlow) this.demoAmbientGlow.alpha = this.config.lightingIntensity;
 
-    // Draw ambient star field
+    // Draw ambient star field — gated by lightingIntensity
     this.drawAmbientStars();
+    if (this.demoAmbientStars) this.demoAmbientStars.alpha = this.config.lightingIntensity;
 
-    // Draw piano keyboard at the bottom
+    // Draw piano keyboard at the bottom — energy bar gated by lightingIntensity
     this.drawPianoKeyboard();
+    if (this.demoKeyboard) this.demoKeyboard.alpha = this.config.lightingIntensity < 0.01 ? 0 : 0.35 + this.config.lightingIntensity * 0.65;
+
+    // Flash rings layer
+    const flashRings = new Graphics();
+    flashRings.label = 'flashRings';
+    this.demoLayer.addChild(flashRings);
+
+    // Reveal graphic — white flash overlay for final reveal
+    this.demoRevealGraphic = new Graphics();
+    this.demoRevealGraphic.rect(0, 0, 1080, 1920).fill({ color: 0xffffff, alpha: 0 });
+    this.demoRevealGraphic.visible = false;
+    this.demoLayer.addChild(this.demoRevealGraphic);
 
     // Spawn first wave of pieces from keyboard upward
     this.spawnDemoWave();
@@ -315,10 +335,10 @@ export class VisualFxEngine {
     for (let y = 0; y < 40; y += 1) {
       const t = y / 40;
       keyboard.rect(0, kbY - 20 - y, totalWidth, 1).fill({ color: 0x221100, alpha: 0.12 * (1 - t) });
-    }
-
-    this.demoLayer.addChild(keyboard);
+    }    this.demoLayer.addChild(keyboard);
+    this.demoKeyboard = keyboard;
   }
+
 
   private drawAmbientGlow(): void {
     const glow = new Graphics();
@@ -380,6 +400,7 @@ export class VisualFxEngine {
     }
 
     this.demoLayer.addChild(glow);
+    this.demoAmbientGlow = glow;
   }
 
   private drawAmbientStars(): void {
@@ -392,6 +413,7 @@ export class VisualFxEngine {
       stars.circle(x, y, size).fill({ color: 0xffffff, alpha });
     }
     this.demoLayer.addChild(stars);
+    this.demoAmbientStars = stars;
   }
 
   private spawnDemoWave(): void {
@@ -504,10 +526,10 @@ export class VisualFxEngine {
         const position = frame.currentPosition;
         const distance = Math.hypot(position.x - trail.x, position.y - trail.y);
         if (distance > 3) {
-          if (this.config.trailEnabled && this.config.particlesEnabled) {
+          if (this.config.trailEnabled && this.config.particlesEnabled && this.config.particleDensity > 0.02) {
             this.emitTrail(position, trail, trail.color, trail.intensity);
           }
-          if (playbackTimeMs - trail.lastSmokeEmitMs >= this.config.smokeEmissionIntervalMs) {
+          if (this.config.smokeDensity > 0.02 && playbackTimeMs - trail.lastSmokeEmitMs >= this.config.smokeEmissionIntervalMs) {
             const behavior = this.behaviorForMidi(trail.midiNote);
             if (this.config.smokeEnabled && getFxPresetTuning(this.config.preset).smokeMultiplier > 0) {
               this.emitSmokeAlongPath(
@@ -660,10 +682,10 @@ export class VisualFxEngine {
       if (trail && progress < 1) {
         const dist = Math.hypot(position.x - trail.x, position.y - trail.y);
         if (dist > 1.2) {
-          if (this.config.trailEnabled && this.config.particlesEnabled) {
+          if (this.config.trailEnabled && this.config.particlesEnabled && this.config.particleDensity > 0.02) {
             this.emitTrail(position, trail, trail.color, trail.intensity);
           }
-          if (this.demoTimeMs - trail.lastSmokeEmitMs >= this.config.smokeEmissionIntervalMs * 0.6) {
+          if (this.config.smokeDensity > 0.02 && this.demoTimeMs - trail.lastSmokeEmitMs >= this.config.smokeEmissionIntervalMs * 0.6) {
             const behavior = this.behaviorForMidi(trail.midiNote);
             if (this.config.smokeEnabled && getFxPresetTuning(this.config.preset).smokeMultiplier > 0) {
               this.emitSmokeAlongPath(
@@ -681,49 +703,144 @@ export class VisualFxEngine {
         }
       }
 
-      // Glow pulse while moving - much bigger and brighter
+      // Glow pulse while moving — gated by glowEnabled + glowIntensity
       piece.pulseMs += deltaMs;
-      if (piece.pulseMs >= 55 && progress < 0.95) {
+      if (piece.pulseMs >= 55 && progress < 0.95 && this.config.glowEnabled && this.config.glowIntensity > 0.02) {
         piece.pulseMs = 0;
-        if (this.config.glowEnabled) {
-          this.glowController.add(position, piece.color, this.config.glowIntensity * 0.85, this.config.revealDurationMs * 0.65, 30 + progress * 48);
-        }
+        this.glowController.add(position, piece.color, this.config.glowIntensity * 0.85, this.config.revealDurationMs * 0.65, 30 + progress * 48);
       }
       piece.lastPosition = position;
 
-      // Lock effect when reaching target position
+      // Lock effect when reaching target position — cinematic flash
       if (progress >= 1 && !piece.locked) {
         piece.locked = true;
+        const allLocked = this.demoPieces.every((p) => p.locked);
         this.onPieceLock({ pieceId: piece.id, position: piece.target, midiNote: piece.midiNote, intensity: 1.0, playbackTimeMs: this.demoTimeMs });
-        // Burst particles at target
-        if (this.config.particlesEnabled) {
-          for (let i = 0; i < 60; i++) {
-            const angle = (Math.PI * 2 * i) / 60 + this.random.signed(0.12);
-            const speed = this.random.range(18, 58);
+        // Multiple expanding rings — gated by impactIntensity
+        if (this.config.impactIntensity > 0.02) {
+          const ringColor = allLocked ? 0xffffff : piece.color;
+          const ringScale = this.config.impactIntensity;
+          this.demoFlashRings.push({ x: piece.target.x, y: piece.target.y, age: 0, maxAge: 350, maxRadius: (allLocked ? 500 : 140) * ringScale, color: ringColor });
+          this.demoFlashRings.push({ x: piece.target.x, y: piece.target.y, age: -80, maxAge: 480, maxRadius: (allLocked ? 700 : 220) * ringScale, color: ringColor });
+          this.demoFlashRings.push({ x: piece.target.x, y: piece.target.y, age: -160, maxAge: 600, maxRadius: (allLocked ? 900 : 300) * ringScale, color: ringColor });
+        }
+        // Burst particles — gated by particlesEnabled + particleDensity
+        if (this.config.particlesEnabled && this.config.particleDensity > 0.02) {
+          const burstCount = Math.round((allLocked ? 140 : 70) * this.config.particleDensity);
+          for (let i = 0; i < burstCount; i++) {
+            const angle = (Math.PI * 2 * i) / burstCount + this.random.signed(0.15);
+            const speed = this.random.range(14, allLocked ? 95 : 62);
+            const texRoll = this.random.nextFloat();
+            const texId: FxTextureId = texRoll < 0.35 ? "glow-orb" : texRoll < 0.6 ? "soft-orb" : texRoll < 0.8 ? "warm-orb" : "sharp-dot";
             this.tryAcquireParticle(
-              { x: piece.target.x + this.random.signed(2), y: piece.target.y + this.random.signed(2) },
+              { x: piece.target.x + this.random.signed(3), y: piece.target.y + this.random.signed(3) },
               { x: Math.cos(angle) * speed, y: Math.sin(angle) * speed },
-              this.random.range(400, 800),
-              this.random.nextFloat() > 0.4 ? 0xffffff : piece.color,
-              this.config.particleSize * this.random.range(1.2, 2.8),
-              this.random.nextFloat() > 0.5 ? "spark-cross" : "ember-small",
-              0.88
+              this.random.range(allLocked ? 900 : 500, allLocked ? 1600 : 900),
+              this.random.nextFloat() > 0.25 ? 0xffffff : piece.color,
+              this.config.particleSize * this.random.range(1.0, allLocked ? 5.0 : 3.2),
+              texId,
+              allLocked ? 1.0 : 0.9
             );
           }
         }
-        if (this.config.glowEnabled) {
-          this.glowController.add(piece.target, piece.color, 1.0, 750, 52);
+        // Glow bursts — gated by glowEnabled + glowIntensity
+        if (this.config.glowEnabled && this.config.glowIntensity > 0.02) {
+          const gi = this.config.glowIntensity;
+          this.glowController.add(piece.target, allLocked ? 0xffffff : piece.color, gi, allLocked ? 1400 : 800, allLocked ? 110 : 60);
+          if (allLocked) {
+            this.glowController.add(piece.target, piece.color, gi * 0.8, 1800, 160);
+          }
+        }
+        // Full image reveal flash for last piece — gated by glowIntensity
+        if (allLocked && this.demoRevealGraphic && this.config.glowIntensity > 0.02) {
+          this.demoRevealGraphic.alpha = 0;
+          this.demoRevealGraphic.visible = true;
+          this.demoRevealFlashMs = 0;
         }
       }
     }
+    // Update flash rings — multi-layer cinematic expanding rings
+    const flashGraphics = this.demoLayer.getChildByName('flashRings') as Graphics | undefined;
+    if (flashGraphics) flashGraphics.clear();
+    for (let i = this.demoFlashRings.length - 1; i >= 0; i--) {
+      const ring = this.demoFlashRings[i];
+      ring.age += deltaMs;
+      if (ring.age >= ring.maxAge) {
+        this.demoFlashRings.splice(i, 1);
+        continue;
+      }
+      const t = ring.age / ring.maxAge;
+      const radius = ring.maxRadius * (0.05 + t * 0.95);
+      const alpha = Math.pow(1 - t, 2.5) * 0.8;
+      if (flashGraphics) {
+        // Outer soft glow — big, faint, atmospheric
+        flashGraphics.circle(ring.x, ring.y, radius * 1.4);
+        flashGraphics.fill({ color: ring.color, alpha: alpha * 0.12 });
+        // Mid ring
+        flashGraphics.circle(ring.x, ring.y, radius);
+        flashGraphics.fill({ color: ring.color, alpha: alpha * 0.45 });
+        // Inner bright ring
+        flashGraphics.circle(ring.x, ring.y, radius * 0.65);
+        flashGraphics.fill({ color: 0xffffff, alpha: alpha * 0.35 });
+        // Core bright spot
+        flashGraphics.circle(ring.x, ring.y, radius * 0.2);
+        flashGraphics.fill({ color: 0xffffff, alpha: alpha * 0.6 });
+        // Thin ring outline for lens flare feel
+        flashGraphics.circle(ring.x, ring.y, radius * 0.85);
+        flashGraphics.stroke({ color: 0xffffff, width: 1.5, alpha: alpha * 0.3 });
+      }
+    }
+    if (flashGraphics) flashGraphics.label = 'flashRings';
+
+    // Update reveal flash for last piece — cinematic radial light burst
+    if (this.demoRevealGraphic && this.demoRevealGraphic.visible) {
+      this.demoRevealFlashMs += deltaMs;
+      const revealDuration = 2400;
+      const t = Math.min(1, this.demoRevealFlashMs / revealDuration);
+      // Phase 1: bright flash in (0-20%)
+      // Phase 2: radial sweep outward (20-60%)
+      // Phase 3: gentle fade out (60-100%)
+      let alpha: number;
+      if (t < 0.2) {
+        alpha = (t / 0.2) * 0.9;
+      } else if (t < 0.6) {
+        const sweep = (t - 0.2) / 0.4;
+        alpha = 0.9 * (1 - sweep * 0.3);
+      } else {
+        alpha = 0.63 * Math.pow(1 - (t - 0.6) / 0.4, 1.8);
+      }
+      this.demoRevealGraphic.alpha = alpha;
+      if (t >= 1) {
+        this.demoRevealGraphic.visible = false;
+        this.demoRevealGraphic.alpha = 0;
+      }
+    }
+
     // Respawn after all pieces locked
-    if (this.demoPieces.length > 0 && this.demoPieces.every((p) => p.locked) && this.demoTimeMs > 600) {
+    const allLocked = this.demoPieces.length > 0 && this.demoPieces.every((p) => p.locked);
+    const revealDone = !this.demoRevealGraphic || !this.demoRevealGraphic.visible;
+    if (allLocked && this.demoTimeMs > 600 && revealDone) {
       this.demoTimeMs = 0;
       this.demoPieces = [];
+      this.demoFlashRings = [];
       this.demoLayer.removeChildren().forEach((child) => child.destroy());
       this.demoBackdrop = undefined;
+      this.demoRevealGraphic = undefined;
+      // Rebuild background
+      this.demoBackdrop = new Graphics();
+      this.demoBackdrop.rect(0, 0, 1080, 1920).fill({ color: 0x050810, alpha: 1 });
+      this.demoLayer.addChild(this.demoBackdrop);
+      this.drawAmbientGlow();
+      if (this.demoAmbientGlow) this.demoAmbientGlow.alpha = this.config.lightingIntensity;
       this.drawAmbientStars();
+      if (this.demoAmbientStars) this.demoAmbientStars.alpha = this.config.lightingIntensity;
       this.drawPianoKeyboard();
+      if (this.demoKeyboard) this.demoKeyboard.alpha = this.config.lightingIntensity < 0.01 ? 0 : 0.35 + this.config.lightingIntensity * 0.65;
+      // Re-add reveal graphic
+      this.demoRevealGraphic = new Graphics();
+      this.demoRevealGraphic.rect(0, 0, 1080, 1920).fill({ color: 0xffffff, alpha: 0 });
+      this.demoRevealGraphic.visible = false;
+      this.demoLayer.addChild(this.demoRevealGraphic);
       this.spawnDemoWave();
     }
   }
@@ -732,36 +849,58 @@ export class VisualFxEngine {
     this.demoActive = false;
     this.demoTimeMs = 0;
     this.demoPieces = [];
+    this.demoFlashRings = [];
     this.demoLayer.removeChildren().forEach((child) => child.destroy());
     this.demoBackdrop = undefined;
+    this.demoRevealGraphic = undefined;
+    this.demoAmbientGlow = undefined;
+    this.demoAmbientStars = undefined;
+    this.demoKeyboard = undefined;
   }
 
   private createDemoNoteGraphic(color: number, midiNote: number): Graphics {
     const graphic = new Graphics();
     const isBlack = [1, 3, 6, 8, 10].includes(midiNote % 12);
-    const w = isBlack ? 26 : 34;
-    const h = 50 + (midiNote % 12) * 3;
+    const w = isBlack ? 28 : 36;
+    const h = 52 + (midiNote % 12) * 3;
+    const tabR = w * 0.22;
+    const seed = midiNote * 7 + 13;
+    const hasTab = [
+      (seed % 3) !== 0,
+      ((seed >> 2) % 3) !== 0,
+      ((seed >> 4) % 3) !== 0,
+      ((seed >> 6) % 3) !== 0,
+    ];
+    const glowLevel = this.config.glowIntensity;
+    // Outer glow halo — only when glow is active
+    if (glowLevel > 0.01) {
+      graphic.circle(0, 0, Math.max(w, h) * 0.85)
+        .fill({ color, alpha: 0.06 * glowLevel });
+      graphic.circle(0, 0, Math.max(w, h) * 0.65)
+        .fill({ color, alpha: 0.12 * glowLevel });
+    }
+    // Puzzle piece body with tabs
+    const hw = w / 2, hh = h / 2;
+    graphic.moveTo(-hw, -hh);
+    if (hasTab[0]) { graphic.lineTo(-hw + 2, -hh); graphic.circle(-hw + w * 0.5, -hh - tabR * 0.7, tabR); graphic.lineTo(hw - 2, -hh); }
+    else { graphic.lineTo(hw, -hh); }
+    if (hasTab[1]) { graphic.lineTo(hw, -hh + 2); graphic.circle(hw + tabR * 0.7, -hh + h * 0.5, tabR); graphic.lineTo(hw, hh - 2); }
+    else { graphic.lineTo(hw, hh); }
+    if (hasTab[2]) { graphic.lineTo(hw - 2, hh); graphic.circle(hw - w * 0.5, hh + tabR * 0.7, tabR); graphic.lineTo(-hw + 2, hh); }
+    else { graphic.lineTo(-hw, hh); }
+    if (hasTab[3]) { graphic.lineTo(-hw, hh - 2); graphic.circle(-hw - tabR * 0.7, hh - h * 0.5, tabR); graphic.lineTo(-hw, -hh + 2); }
+    else { graphic.lineTo(-hw, -hh); }
+    graphic.closePath();
+    graphic.fill({ color, alpha: Math.max(0.15, 0.92 * Math.max(glowLevel, 0.15)) });
+    graphic.stroke({ color: 0xffffff, width: 1.8, alpha: Math.max(0.1, 0.55 * glowLevel) });
 
-    // Large outer glow halo - very soft and big
-    graphic.roundRect(-w / 2 - 16, -h / 2 - 16, w + 32, h + 32, 14)
-      .fill({ color, alpha: 0.08 });
-
-    // Mid glow layer
-    graphic.roundRect(-w / 2 - 8, -h / 2 - 8, w + 16, h + 16, 10)
-      .fill({ color, alpha: 0.15 });
-
-    // Main body - fire/lava texture feel
-    graphic.roundRect(-w / 2, -h / 2, w, h, 6)
-      .fill({ color, alpha: 0.95 })
-      .stroke({ color: 0xffffff, width: 2.2, alpha: 0.65 });
-
-    // Inner glow highlight - warm core
-    graphic.roundRect(-w / 2 + 4, -h / 2 + 4, w - 8, h * 0.4, 4)
-      .fill({ color: 0xffffff, alpha: 0.3 });
-
-    // Bright center line
-    graphic.rect(-1.5, -h / 2 + 6, 3, h - 12)
-      .fill({ color: 0xffffff, alpha: 0.5 });
+    // Inner glow highlight — only when glow is active
+    if (glowLevel > 0.01) {
+      graphic.roundRect(-hw * 0.5, -hh * 0.6, w * 0.5, h * 0.35, 3)
+        .fill({ color: 0xffffff, alpha: 0.22 * glowLevel });
+      graphic.circle(0, 0, 3)
+        .fill({ color: 0xffffff, alpha: 0.6 * glowLevel });
+    }
 
     return graphic;
   }
@@ -774,6 +913,7 @@ export class VisualFxEngine {
     invert = false,
     fullPath = false
   ): void {
+    if (this.config.particleDensity <= 0.02) return;
     if (this.isStardustPreset()) {
       this.emitStardustTrail(position, target, color, intensity, invert, fullPath);
       return;
@@ -783,7 +923,7 @@ export class VisualFxEngine {
     const dy = target.y - position.y;
     const distance = Math.hypot(dx, dy) || 1;
     const direction = invert ? -1 : 1;
-    const count = Math.max(1, Math.round((2 + this.config.particleDensity * 16 * (0.35 + this.config.trailLength)) * tuning.trailMultiplier));
+    const count = Math.round(this.config.particleDensity * 16 * (0.35 + this.config.trailLength) * tuning.trailMultiplier);
     for (let i = 0; i < count; i += 1) {
       const spread = this.random.signed(14 + this.config.pathCurvature * 28);
       const normalX = -dy / distance;
@@ -805,8 +945,9 @@ export class VisualFxEngine {
   }
 
   private emitSparkles(position: { x: number; y: number }, color: number, intensity: number): void {
+    if (this.config.particleDensity <= 0.02) return;
     const tuning = getFxPresetTuning(this.config.preset);
-    const count = Math.max(2, Math.round((4 + this.config.particleDensity * 12) * tuning.sparkleMultiplier));
+    const count = Math.round(this.config.particleDensity * 12 * tuning.sparkleMultiplier);
     for (let i = 0; i < count; i += 1) {
       const angle = (Math.PI * 2 * i) / count;
       this.tryAcquireParticle(
@@ -828,6 +969,7 @@ export class VisualFxEngine {
     invert: boolean,
     fullPath: boolean
   ): void {
+    if (this.config.particleDensity <= 0.02) return;
     const tuning = getFxPresetTuning(this.config.preset);
     const hasTrail = "points" in target;
     const isLocalTrail = hasTrail && !fullPath;
@@ -841,7 +983,7 @@ export class VisualFxEngine {
     const direction = invert ? -1 : 1;
     const behavior = hasTrail ? this.behaviorForMidi(target.midiNote) : "neutral";
     const count = isLocalTrail
-      ? Math.max(12, Math.round(8 + this.config.particleDensity * 8))
+      ? Math.round(this.config.particleDensity * 20)
       : Math.max(
         50,
         Math.round(
@@ -887,20 +1029,20 @@ export class VisualFxEngine {
       const tangent = this.random.range(isLocalTrail ? 10 : 16, isLocalTrail ? 28 : 42) * (0.62 + intensity * 0.7);
       const curl = (0.45 + along) * tuning.swirl * this.random.signed(isLocalTrail ? 12 : 28 + this.config.pathCurvature * 26) * (behavior === "high" ? 1.28 : behavior === "bass" ? 0.72 : 1);
       const textureRoll = this.random.nextFloat();
-      const textureId: FxTextureId = textureRoll < 0.2
-        ? "spark-field"
-        : textureRoll < 0.5
-          ? "micro-spark"
-          : textureRoll < 0.76
-            ? "particle-cluster"
-            : "micro-streak";
-      const textureScale = textureId === "micro-streak"
-        ? 0.85
-        : textureId === "spark-field"
-          ? 0.72
-          : textureId === "particle-cluster"
-            ? 0.65
-            : 0.55;
+      const textureId: FxTextureId = textureRoll < 0.25
+        ? "glow-orb"
+        : textureRoll < 0.55
+          ? "soft-orb"
+          : textureRoll < 0.78
+            ? "warm-orb"
+            : "sharp-dot";
+      const textureScale = textureId === "glow-orb"
+        ? 0.92
+        : textureId === "soft-orb"
+          ? 0.68
+          : textureId === "warm-orb"
+            ? 0.72
+            : 0.48;
       const particleColor = index % 11 === 0 ? 0xffffff : color;
       const velocity = {
         x: direction * tangentX * tangent + localNormalX * curl,
@@ -924,6 +1066,7 @@ export class VisualFxEngine {
     intensity: number,
     behavior: FxSmokeBehavior
   ): void {
+    if (this.config.particleDensity <= 0.02) return;
     const tuning = getFxPresetTuning(this.config.preset);
     const flashCount = behavior === "high" ? 4 : 6;
     for (let index = 0; index < flashCount; index += 1) {
@@ -949,15 +1092,15 @@ export class VisualFxEngine {
       const tangent = behavior === "high" ? 1.55 : behavior === "bass" ? 0.42 : 0.9;
       const radius = this.random.range(0.5, spread) * radial * (0.7 + plume * 0.34);
       const textureId: FxTextureId = behavior === "high"
-        ? (index % 5 === 0 ? "spark-field" : index % 2 === 0 ? "micro-streak" : "micro-spark")
-        : (index % 7 === 0 ? "spark-field" : index % 5 === 0 ? "particle-cluster" : index % 3 === 0 ? "micro-streak" : "micro-spark");
-      const textureScale = textureId === "micro-streak"
-        ? 0.55
-        : textureId === "spark-field"
-          ? 0.45
-          : textureId === "particle-cluster"
-            ? 0.42
-            : 0.35;
+        ? (index % 5 === 0 ? "glow-orb" : index % 2 === 0 ? "sharp-dot" : "soft-orb")
+        : (index % 7 === 0 ? "glow-orb" : index % 5 === 0 ? "warm-orb" : index % 3 === 0 ? "sharp-dot" : "soft-orb");
+      const textureScale = textureId === "glow-orb"
+        ? 0.82
+        : textureId === "soft-orb"
+          ? 0.55
+          : textureId === "warm-orb"
+            ? 0.58
+            : 0.42;
       const particleColor = index % 13 === 0 ? 0xffffff : color;
       const lateral = behavior === "bass" ? 1.6 : behavior === "high" ? 0.65 : 1;
       const upward = behavior === "bass"
@@ -989,6 +1132,7 @@ export class VisualFxEngine {
     intensity: number,
     behavior: FxSmokeBehavior
   ): void {
+    if (this.config.particleDensity <= 0.02) return;
     const tuning = getFxPresetTuning(this.config.preset);
     const count = behavior === "high" ? 58 : behavior === "bass" ? 54 : 56;
     const speed = behavior === "bass" ? 24 : behavior === "high" ? 38 : 30;
@@ -1008,14 +1152,14 @@ export class VisualFxEngine {
       const angle = (Math.PI * 2 * index) / count + this.random.signed(0.22);
       const radius = this.random.range(1, behavior === "high" ? 10 : 8);
       const curl = speed * (behavior === "high" ? 0.78 : behavior === "bass" ? 0.22 : 0.42);
-      const textureId: FxTextureId = index % 7 === 0 ? "spark-field" : index % 5 === 0 ? "particle-cluster" : index % 3 === 0 ? "micro-streak" : "micro-spark";
-      const textureScale = textureId === "micro-streak"
-        ? 0.62
-        : textureId === "spark-field"
-          ? 0.48
-          : textureId === "particle-cluster"
-            ? 0.45
-            : 0.38;
+      const textureId: FxTextureId = index % 7 === 0 ? "glow-orb" : index % 5 === 0 ? "warm-orb" : index % 3 === 0 ? "sharp-dot" : "soft-orb";
+      const textureScale = textureId === "glow-orb"
+        ? 0.88
+        : textureId === "soft-orb"
+          ? 0.62
+          : textureId === "warm-orb"
+            ? 0.65
+            : 0.45;
       const particleColor = index % 9 === 0 ? 0xffffff : color;
       this.tryAcquireParticle(
         { x: position.x + Math.cos(angle) * radius, y: position.y + Math.sin(angle) * radius },
@@ -1039,6 +1183,7 @@ export class VisualFxEngine {
     intensity: number,
     emissionIndex: number
   ): void {
+    if (this.config.particleDensity <= 0.02) return;
     const tuning = getFxPresetTuning(this.config.preset);
     const distance = Math.hypot(direction.x, direction.y) || 1;
     const textureId: FxTextureId = emissionIndex % 2 === 0 ? "light-streak" : "soft-bokeh";
@@ -1058,6 +1203,7 @@ export class VisualFxEngine {
   }
 
   private emitSmokeNote(position: { x: number; y: number }, color: number, intensity: number, behavior: FxSmokeBehavior): void {
+    if (this.config.smokeDensity <= 0.02) return;
     const tuning = getFxPresetTuning(this.config.preset);
     const smokeIntensity = this.smokeIntensityMultiplier(behavior);
     this.tryAcquireSmoke(
@@ -1079,6 +1225,7 @@ export class VisualFxEngine {
     intensity: number,
     behavior: FxSmokeBehavior
   ): void {
+    if (this.config.smokeDensity <= 0.02) return;
     const tuning = getFxPresetTuning(this.config.preset);
     const dx = target.x - position.x;
     const dy = target.y - position.y;
@@ -1156,6 +1303,7 @@ export class VisualFxEngine {
     behavior: FxSmokeBehavior,
     emissionIndex: number
   ): void {
+    if (this.config.smokeDensity <= 0.02) return;
     const tuning = getFxPresetTuning(this.config.preset);
     const dx = current.x - previous.x;
     const dy = current.y - previous.y;
@@ -1227,6 +1375,7 @@ export class VisualFxEngine {
   }
 
   private emitSmokeBurst(position: { x: number; y: number }, color: number, intensity: number, behavior: FxSmokeBehavior): void {
+    if (this.config.smokeDensity <= 0.02) return;
     const tuning = getFxPresetTuning(this.config.preset);
     const layerCount = behavior === "bass" ? Math.min(3, this.config.smokeLayerCount) : Math.min(2, this.config.smokeLayerCount);
     const baseSpeed = behavior === "bass" ? 5 : behavior === "high" ? 9 : 7;
@@ -1409,7 +1558,7 @@ export class VisualFxEngine {
   private chooseTrailTexture(): FxTextureId {
     if (this.isStardustPreset()) {
       const roll = this.random.nextFloat();
-      return roll < 0.45 ? "micro-spark" : roll < 0.77 ? "particle-cluster" : "micro-streak";
+      return roll < 0.35 ? "glow-orb" : roll < 0.65 ? "soft-orb" : roll < 0.82 ? "warm-orb" : "sharp-dot";
     }
     let textureId: FxTextureId = this.random.nextFloat() > 0.82 ? "ember-small" : "dust-mote";
     if (textureId === this.lastTrailTexture && this.random.nextFloat() < 0.7) {
@@ -1580,8 +1729,8 @@ export class VisualFxEngine {
       const sourceColor = colorForPitch(this.config.palette, 48 + Math.round(t * 48));
       const color = this.stardustColorFor(behavior, sourceColor, 48 + Math.round(t * 48));
       const textureRoll = this.random.nextFloat();
-      const textureId: FxTextureId = textureRoll < 0.35 ? "spark-field" : textureRoll < 0.6 ? "micro-spark" : textureRoll < 0.82 ? "particle-cluster" : "micro-streak";
-      const textureScale = textureId === "micro-streak" ? 0.52 : textureId === "spark-field" ? 0.45 : textureId === "particle-cluster" ? 0.4 : 0.32;
+      const textureId: FxTextureId = textureRoll < 0.3 ? "glow-orb" : textureRoll < 0.55 ? "soft-orb" : textureRoll < 0.78 ? "warm-orb" : "ice-orb";
+      const textureScale = textureId === "glow-orb" ? 0.72 : textureId === "soft-orb" ? 0.55 : textureId === "warm-orb" ? 0.58 : 0.52;
       this.tryAcquireParticle(
         { x, y },
         { x: vx, y: vy },
@@ -1635,8 +1784,8 @@ export class VisualFxEngine {
       const sourceColor = colorForPitch(this.config.palette, 40 + Math.round(t * 56));
       const color = this.stardustColorFor(behavior, sourceColor, 40 + Math.round(t * 56));
       const textureRoll = this.random.nextFloat();
-      const textureId: FxTextureId = textureRoll < 0.3 ? "spark-field" : textureRoll < 0.55 ? "micro-spark" : textureRoll < 0.8 ? "particle-cluster" : "soft-bokeh";
-      const textureScale = textureId === "soft-bokeh" ? 0.35 : textureId === "spark-field" ? 0.22 : textureId === "particle-cluster" ? 0.2 : 0.17;
+      const textureId: FxTextureId = textureRoll < 0.25 ? "glow-orb" : textureRoll < 0.5 ? "soft-orb" : textureRoll < 0.72 ? "ice-orb" : "sharp-dot";
+      const textureScale = textureId === "glow-orb" ? 0.65 : textureId === "soft-orb" ? 0.48 : textureId === "ice-orb" ? 0.52 : 0.38;
       this.tryAcquireParticle(
         { x, y },
         { x: vx, y: vy },
