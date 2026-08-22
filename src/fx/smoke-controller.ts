@@ -303,7 +303,7 @@ export class SmokeController {
       const growth = 0.68 + progress * 1.62;
       const breathing = 1 + Math.sin(state.phase + progress * 5.2) * 0.1 + Math.sin(state.flowPhase + progress * 2.6) * 0.05;
       state.scale = state.baseScale * growth * breathing * (0.94 + state.depth * 0.06);
-      state.alpha = state.baseAlpha * alphaCurve * (0.92 + Math.sin(state.flowPhase + progress * 3.1) * 0.08);
+      state.alpha = state.baseAlpha * alphaCurve * (0.94 + Math.sin(state.flowPhase + progress * 2.8) * 0.06);
       state.rotation += state.spin * delta;
 
       slot.visual.position.set(state.x, state.y);

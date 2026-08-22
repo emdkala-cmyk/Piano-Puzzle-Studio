@@ -170,16 +170,26 @@ export class LightingController {
 function createVignetteTexture(): Texture {
   if (typeof document === "undefined") return Texture.WHITE;
   const canvas = document.createElement("canvas");
-  canvas.width = 256;
-  canvas.height = 256;
+  canvas.width = 512;
+  canvas.height = 512;
   const context = canvas.getContext("2d");
   if (!context) return Texture.WHITE;
-  const gradient = context.createRadialGradient(128, 128, 28, 128, 128, 180);
-  gradient.addColorStop(0, "rgba(9, 13, 30, 0)");
-  gradient.addColorStop(0.55, "rgba(9, 13, 30, 0.08)");
-  gradient.addColorStop(0.82, "rgba(9, 13, 30, 0.42)");
-  gradient.addColorStop(1, "rgba(4, 7, 18, 0.88)");
-  context.fillStyle = gradient;
-  context.fillRect(0, 0, 256, 256);
+  // Multi-layer cinematic vignette
+  const gradient1 = context.createRadialGradient(256, 256, 40, 256, 256, 350);
+  gradient1.addColorStop(0, "rgba(6, 10, 24, 0)");
+  gradient1.addColorStop(0.4, "rgba(6, 10, 24, 0.02)");
+  gradient1.addColorStop(0.65, "rgba(6, 10, 24, 0.15)");
+  gradient1.addColorStop(0.85, "rgba(4, 7, 18, 0.45)");
+  gradient1.addColorStop(1, "rgba(2, 4, 12, 0.82)");
+  context.fillStyle = gradient1;
+  context.fillRect(0, 0, 512, 512);
+  // Subtle warm glow in center
+  const gradient2 = context.createRadialGradient(256, 280, 0, 256, 280, 200);
+  gradient2.addColorStop(0, "rgba(20, 15, 35, 0.12)");
+  gradient2.addColorStop(0.5, "rgba(15, 10, 28, 0.05)");
+  gradient2.addColorStop(1, "rgba(0, 0, 0, 0)");
+  context.globalCompositeOperation = "screen";
+  context.fillStyle = gradient2;
+  context.fillRect(0, 0, 512, 512);
   return Texture.from(canvas);
 }

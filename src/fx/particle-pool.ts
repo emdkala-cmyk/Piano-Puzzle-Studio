@@ -131,7 +131,7 @@ export class ParticlePool {
     state.rotation = this.random.range(0, Math.PI * 2);
     state.spin = this.random.signed(textureId === "light-streak" ? 1.4 : 3.8);
     state.phase = this.random.range(0, Math.PI * 2);
-    state.drag = textureId === "light-streak" ? 0.45 : textureId === "soft-bokeh" ? 0.7 : textureId === "spark-field" ? 1.1 : 1.35;
+    state.drag = textureId === "light-streak" ? 0.35 : textureId === "soft-bokeh" ? 0.55 : textureId === "spark-field" ? 0.85 : 1.1;
     state.turbulence = textureId === "micro-streak"
       ? 7.5 + this.random.signed(2)
       : textureId === "spark-field"
@@ -142,29 +142,30 @@ export class ParticlePool {
             ? 3.2 + this.random.signed(1)
             : 2.0 + this.random.signed(0.8);
     state.turbulenceFrequency = textureId === "micro-streak"
-      ? 6.5 + this.random.signed(1.5)
+      ? 5.0 + this.random.signed(1.2)
       : textureId === "spark-field"
-        ? 5.5 + this.random.signed(1)
+        ? 4.2 + this.random.signed(0.8)
         : textureId === "particle-cluster"
-          ? 4.8 + this.random.signed(1)
-          : 3.8 + this.random.signed(0.8);
+          ? 3.8 + this.random.signed(0.8)
+          : 3.0 + this.random.signed(0.6);
     state.rise = textureId === "micro-spark" || textureId === "spark-field" || textureId === "particle-cluster" ? -4.0 + this.random.signed(1.5) : -1.0 + this.random.signed(0.5);
+    // Longer visible lifetime - particles stay bright longer
     state.fadeInEnd = textureId === "light-streak"
-      ? 0.03
+      ? 0.02
       : textureId === "soft-bokeh"
-        ? 0.08
+        ? 0.06
         : textureId === "micro-streak"
-          ? 0.02
+          ? 0.015
           : textureId === "micro-spark" || textureId === "spark-field" || textureId === "particle-cluster"
-            ? 0.028
-            : 0.06;
+            ? 0.022
+            : 0.05;
     state.fadeOutStart = textureId === "soft-bokeh"
-      ? 0.42
+      ? 0.45
       : textureId === "micro-streak"
-        ? 0.68
+        ? 0.72
         : textureId === "micro-spark" || textureId === "spark-field" || textureId === "particle-cluster"
-          ? 0.58
-          : 0.52;
+          ? 0.62
+          : 0.58;
     state.flipX = this.random.nextFloat() > 0.5;
     state.textureId = textureId;
     state.colorShift = this.random.range(0.08, 0.18);
@@ -203,15 +204,18 @@ export class ParticlePool {
       state.vy *= drag;
       const progress = state.age / state.lifetime;
       const turbulencePhase = state.phase + progress * state.turbulenceFrequency * Math.PI * 2;
-      const orbitalX = Math.sin(turbulencePhase * 0.7 + state.phase * 1.3) * state.turbulence * 0.35;
-      const orbitalY = Math.cos(turbulencePhase * 0.55 + state.phase * 0.9) * state.turbulence * 0.28;
+      // Multi-layer orbital motion for organic flow
+      const orbitalX = Math.sin(turbulencePhase * 0.6 + state.phase * 1.4) * state.turbulence * 0.4
+        + Math.sin(turbulencePhase * 1.7 + state.phase * 0.6) * state.turbulence * 0.12;
+      const orbitalY = Math.cos(turbulencePhase * 0.5 + state.phase * 1.1) * state.turbulence * 0.32
+        + Math.cos(turbulencePhase * 1.3 + state.phase * 0.8) * state.turbulence * 0.1;
       state.vx += Math.sin(turbulencePhase) * state.turbulence * deltaSeconds + orbitalX * deltaSeconds;
-      state.vy += Math.cos(turbulencePhase * 0.83 + state.phase * 0.7) * state.turbulence * 0.72 * deltaSeconds + state.rise * deltaSeconds + orbitalY * deltaSeconds;
+      state.vy += Math.cos(turbulencePhase * 0.83 + state.phase * 0.7) * state.turbulence * 0.68 * deltaSeconds + state.rise * deltaSeconds + orbitalY * deltaSeconds;
       const fadeIn = smoothstep(0, state.fadeInEnd, progress);
       const fadeOut = 1 - smoothstep(state.fadeOutStart, 1, progress);
-      state.alpha = state.baseAlpha * Math.pow(Math.max(0, fadeIn * fadeOut), 0.72);
-      const sizePulse = 1 + Math.sin(progress * Math.PI * 3 + state.phase * 2) * 0.06;
-      state.scale = state.baseScale * sizePulse * (1 - progress * 0.15);
+      state.alpha = state.baseAlpha * Math.pow(Math.max(0, fadeIn * fadeOut), 0.42); // Brighter fade curve
+      const sizePulse = 1 + Math.sin(progress * Math.PI * 2.2 + state.phase * 2) * 0.18 + Math.sin(progress * Math.PI * 4.5 + state.phase * 3) * 0.08;
+      state.scale = state.baseScale * sizePulse * (1 + progress * 0.2); // Grow slightly over lifetime for bloom effect
       state.rotation += state.spin * deltaSeconds;
       // Color shift over lifetime - shift toward warmer/brighter
       const colorT = Math.min(1, progress * state.colorShift * 5);
@@ -283,7 +287,8 @@ function blendModeForParticle(textureId: FxTextureId): "add" | "screen" | "norma
     || textureId === "micro-streak"
     || textureId === "particle-cluster"
     || textureId === "ember-small"
-    || textureId === "spark-cross") return "add";
+    || textureId === "spark-cross"
+    || textureId === "dust-mote") return "add";
   if (textureId === "light-streak" || textureId === "soft-bokeh") return "screen";
-  return "normal";
+  return "screen";
 }

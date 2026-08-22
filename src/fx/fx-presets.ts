@@ -20,13 +20,13 @@ export interface FxPresetTuning {
 
 const PRESET_TUNING: Record<VisualFxPreset, FxPresetTuning> = {
   "stardust-stream": {
-    trailMultiplier: 5.2,
-    smokeMultiplier: 0.15,
-    sparkleMultiplier: 4.8,
-    particleScale: 0.82,
-    curveMultiplier: 2.2,
-    swirl: 3.5,
-    glowMultiplier: 1.85,
+    trailMultiplier: 6.5,
+    smokeMultiplier: 0.2,
+    sparkleMultiplier: 5.5,
+    particleScale: 1.1,
+    curveMultiplier: 2.4,
+    swirl: 4.0,
+    glowMultiplier: 3.2,
     smokeCoreScale: 0.48,
     smokeVolumeScale: 0.72,
     smokeResidueScale: 0.95,
@@ -34,7 +34,7 @@ const PRESET_TUNING: Record<VisualFxPreset, FxPresetTuning> = {
     smokeTurbulence: 0.8,
     bassSmokeMultiplier: 1.25,
     highSmokeMultiplier: 0.35,
-    highShimmerMultiplier: 3.2
+    highShimmerMultiplier: 4.0
   },
   "cinematic-orbit": {
     trailMultiplier: 1.35,
@@ -105,13 +105,13 @@ const PRESET_TUNING: Record<VisualFxPreset, FxPresetTuning> = {
     highShimmerMultiplier: 1.45
   },
   "vortex-fire": {
-    trailMultiplier: 4.5,
-    smokeMultiplier: 0.8,
-    sparkleMultiplier: 4.2,
-    particleScale: 0.85,
-    curveMultiplier: 2.4,
-    swirl: 3.8,
-    glowMultiplier: 1.8,
+    trailMultiplier: 6.0,
+    smokeMultiplier: 1.0,
+    sparkleMultiplier: 5.8,
+    particleScale: 1.05,
+    curveMultiplier: 2.6,
+    swirl: 4.2,
+    glowMultiplier: 2.8,
     smokeCoreScale: 0.6,
     smokeVolumeScale: 0.85,
     smokeResidueScale: 1.1,
