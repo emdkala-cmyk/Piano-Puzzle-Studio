@@ -4,12 +4,16 @@ export type FxTextureId =
   | "smoke-cloud-01"
   | "ember-small"
   | "spark-cross"
+  | "micro-spark"
+  | "spark-field"
+  | "micro-streak"
+  | "particle-cluster"
   | "dust-mote"
   | "soft-bokeh"
   | "light-streak"
   | "dissolve-noise";
 
-export type FxAssetType = "smoke" | "ember" | "dust" | "bokeh" | "streak" | "noise-mask";
+export type FxAssetType = "smoke" | "ember" | "spark" | "dust" | "bokeh" | "streak" | "noise-mask";
 export type FxAssetSource = "procedural" | "bundled" | "user";
 
 export interface FxExternalAssetMetadata {
@@ -42,6 +46,10 @@ export const FX_TEXTURE_IDS: readonly FxTextureId[] = [
   "smoke-cloud-01",
   "ember-small",
   "spark-cross",
+  "micro-spark",
+  "spark-field",
+  "micro-streak",
+  "particle-cluster",
   "dust-mote",
   "soft-bokeh",
   "light-streak",

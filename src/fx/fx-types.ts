@@ -2,7 +2,7 @@ import type { Point } from "../geometry/models";
 import type { PieceAnimationFrame } from "../animation/models";
 
 export type VisualFxPalette = "artwork" | "gold" | "neon" | "pitch-gradient";
-export type VisualFxPreset = "cinematic-orbit" | "smoke-ember" | "golden-dust" | "neon-ribbon" | "minimal";
+export type VisualFxPreset = "stardust-stream" | "cinematic-orbit" | "smoke-ember" | "golden-dust" | "neon-ribbon" | "minimal";
 export type FxSmokeLayer = "core" | "volume" | "residue";
 export type FxSmokeBehavior = "neutral" | "bass" | "high";
 
@@ -89,7 +89,7 @@ export const MAX_ACTIVE_PARTICLES = 1200;
 export const MAX_ACTIVE_SMOKE = 384;
 export const NATURAL_SMOKE_LAYER_COUNT = 3;
 export const MAX_SMOKE_SPAWNS_PER_FRAME = 16;
-export const MAX_PARTICLE_SPAWNS_PER_FRAME = 20;
+export const MAX_PARTICLE_SPAWNS_PER_FRAME = 220;
 
 export const DEFAULT_VISUAL_FX_CONFIG: VisualFxConfig = {
   enabled: true,
@@ -100,23 +100,23 @@ export const DEFAULT_VISUAL_FX_CONFIG: VisualFxConfig = {
   glowIntensity: 0.35,
   glowDurationMs: 420,
   trailEnabled: true,
-  trailLength: 0.34,
-  particleDensity: 0.18,
-  particleLifetimeMs: 350,
+  trailLength: 0.72,
+  particleDensity: 0.72,
+  particleLifetimeMs: 720,
   impactIntensity: 0.35,
   lightingIntensity: 0.15,
   palette: "artwork",
-  preset: "cinematic-orbit",
+  preset: "stardust-stream",
   smokeEnabled: true,
-  smokeDensity: 0.64,
+  smokeDensity: 0.12,
   smokeLayerCount: NATURAL_SMOKE_LAYER_COUNT,
-  smokeEmissionIntervalMs: 32,
+  smokeEmissionIntervalMs: 48,
   smokeFrameBudget: MAX_SMOKE_SPAWNS_PER_FRAME,
-  particleFrameBudget: MAX_PARTICLE_SPAWNS_PER_FRAME,
+  particleFrameBudget: 180,
   bassThreshold: 48,
   highThreshold: 84,
-  particleSize: 1,
-  pathCurvature: 0.42,
+  particleSize: 0.9,
+  pathCurvature: 0.58,
   revealDurationMs: 620
 };
 

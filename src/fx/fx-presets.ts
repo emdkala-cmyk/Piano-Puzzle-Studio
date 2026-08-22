@@ -19,6 +19,23 @@ export interface FxPresetTuning {
 }
 
 const PRESET_TUNING: Record<VisualFxPreset, FxPresetTuning> = {
+  "stardust-stream": {
+    trailMultiplier: 3.8,
+    smokeMultiplier: 0,
+    sparkleMultiplier: 3.6,
+    particleScale: 0.7,
+    curveMultiplier: 1.8,
+    swirl: 2.8,
+    glowMultiplier: 1.62,
+    smokeCoreScale: 0.42,
+    smokeVolumeScale: 0.62,
+    smokeResidueScale: 0.86,
+    smokeDrag: 0.72,
+    smokeTurbulence: 0.5,
+    bassSmokeMultiplier: 1.12,
+    highSmokeMultiplier: 0.22,
+    highShimmerMultiplier: 2.8
+  },
   "cinematic-orbit": {
     trailMultiplier: 1.35,
     smokeMultiplier: 1.42,

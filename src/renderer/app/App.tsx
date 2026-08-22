@@ -150,7 +150,7 @@ export function App() {
     panel.hidden = true;
     panel.innerHTML = `
       <div class="fx-dom-heading">Visual FX / جلوه‌های بصری</div>
-      <label>FX Preset<select data-fx="preset"><option value="cinematic-orbit">Cinematic Orbit</option><option value="smoke-ember">Smoke & Ember</option><option value="golden-dust">Golden Dust</option><option value="neon-ribbon">Neon Ribbon</option><option value="minimal">Minimal</option></select></label>
+      <label>FX Preset<select data-fx="preset"><option value="stardust-stream">Stardust Energy Stream</option><option value="cinematic-orbit">Cinematic Orbit</option><option value="smoke-ember">Smoke & Ember</option><option value="golden-dust">Golden Dust</option><option value="neon-ribbon">Neon Ribbon</option><option value="minimal">Minimal</option></select></label>
       <label class="toggle-row"><span>Enable Visual FX</span><input data-fx="enabled" type="checkbox"></label>
       <label class="toggle-row"><span>Keyboard Glow</span><input data-fx="glowEnabled" type="checkbox"></label>
       <label class="toggle-row"><span>Particle Trails</span><input data-fx="trailEnabled" type="checkbox"></label>
@@ -419,7 +419,14 @@ export function App() {
     const artwork = puzzleArtworkImageRef.current!;
     const placement = computeAlignedPlacement(artwork.naturalWidth, artwork.naturalHeight, DEFAULT_LAYOUT.puzzleRegion, artworkPlacementRef.current);
     const absolutePlacement = toAbsolutePlacement(DEFAULT_LAYOUT.puzzleRegion, placement);
-    renderer.rebuild(projected, k, artworkTextureRef.current, absolutePlacement, showPieceBordersRef.current);
+    renderer.rebuild(
+      projected,
+      k,
+      artworkTextureRef.current,
+      absolutePlacement,
+      showPieceBordersRef.current,
+      fxRef.current?.getDissolveNoiseTexture()
+    );
   }
 
   function rebuildPianoBackground(k: number) {

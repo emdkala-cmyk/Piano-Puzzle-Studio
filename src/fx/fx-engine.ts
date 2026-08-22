@@ -1,4 +1,4 @@
-import { Container, Graphics } from "pixi.js";
+import { Container, Graphics, Texture } from "pixi.js";
 import type {
   FxAnimationFrame,
   FxDebugStats,
@@ -28,6 +28,9 @@ import type { FxTextureId } from "./fx-asset-types";
 interface TrailState {
   x: number;
   y: number;
+  origin: { x: number; y: number };
+  targetPosition: { x: number; y: number };
+  control: { x: number; y: number };
   color: number;
   intensity: number;
   midiNote: number;
@@ -107,6 +110,10 @@ export class VisualFxEngine {
     return this.assetPipeline.getManifest();
   }
 
+  getDissolveNoiseTexture(): Texture {
+    return this.assetPipeline.getTexture("dissolve-noise");
+  }
+
   createAssetGallery(): HTMLDivElement | undefined {
     return this.assetPipeline.createDebugGallery();
   }
@@ -123,13 +130,17 @@ export class VisualFxEngine {
     if (!this.acceptNoteEvent(event)) return;
     const tuning = getFxPresetTuning(this.config.preset);
     const intensity = this.config.glowIntensity * tuning.glowMultiplier * (0.35 + Math.max(0, Math.min(1, event.normalizedVelocity)) * 0.65);
-    const color = colorForPitch(this.config.palette, event.midiNote);
     const behavior = this.behaviorForMidi(event.midiNote);
+    const sourceColor = colorForPitch(this.config.palette, event.midiNote);
+    const color = this.isStardustPreset() ? this.stardustColorFor(behavior, sourceColor, event.midiNote) : sourceColor;
     if (this.config.glowEnabled) this.glowController.add(event.position, color, intensity, this.config.glowDurationMs + Math.min(700, event.durationMs * 0.15), event.midiNote < 48 ? 34 : 25);
-    if (this.config.smokeEnabled && behavior === "bass") {
+    if (this.isStardustPreset() && this.config.particlesEnabled) {
+      this.emitStardustNoteBurst(event.position, color, event.normalizedVelocity, behavior);
+    }
+    if (!this.isStardustPreset() && this.config.smokeEnabled && tuning.smokeMultiplier > 0 && behavior === "bass") {
       this.emitSmokeNote(event.position, this.smokeColorFor(behavior, color), event.normalizedVelocity, behavior);
     }
-    if (this.config.particlesEnabled && behavior === "high") {
+    if (!this.isStardustPreset() && this.config.particlesEnabled && behavior === "high") {
       const textureId: FxTextureId = event.midiNote % 2 === 0 ? "soft-bokeh" : "light-streak";
       this.tryAcquireParticle(
         event.position,
@@ -152,10 +163,32 @@ export class VisualFxEngine {
   onPieceLaunch(event: FxPieceLaunchEvent): void {
     if (!this.acceptPieceLaunchEvent(event)) return;
     const tuning = getFxPresetTuning(this.config.preset);
-    const color = colorForPitch(this.config.palette, event.midiNote);
+    const behavior = this.behaviorForMidi(event.midiNote);
+    const sourceColor = colorForPitch(this.config.palette, event.midiNote);
+    const color = this.isStardustPreset() ? this.stardustColorFor(behavior, sourceColor, event.midiNote) : sourceColor;
+    const pathDx = event.targetPosition.x - event.position.x;
+    const pathDy = event.targetPosition.y - event.position.y;
+    const pathDistance = Math.hypot(pathDx, pathDy) || 1;
+    const pathNormalX = -pathDy / pathDistance;
+    const pathNormalY = pathDx / pathDistance;
+    const pathSide = this.random.nextFloat() > 0.5 ? 1 : -1;
+    const pathBend = this.isStardustPreset()
+      ? pathSide * Math.min(
+        150,
+        (58 + pathDistance * 0.12)
+        * (0.5 + this.config.pathCurvature * 0.55)
+        * Math.min(1.15, tuning.curveMultiplier * 0.7)
+      )
+      : 0;
     this.trails.set(event.pieceId, {
       x: event.position.x,
       y: event.position.y,
+      origin: { ...event.position },
+      targetPosition: { ...event.targetPosition },
+      control: {
+        x: event.position.x + pathDx * 0.5 + pathNormalX * pathBend,
+        y: event.position.y + pathDy * 0.5 + pathNormalY * pathBend
+      },
       color,
       intensity: event.intensity,
       midiNote: event.midiNote,
@@ -163,12 +196,18 @@ export class VisualFxEngine {
       lastSmokeEmitMs: event.playbackTimeMs - this.config.smokeEmissionIntervalMs,
       emissionIndex: 0
     });
-    const behavior = this.behaviorForMidi(event.midiNote);
     if (this.config.glowEnabled) {
       this.glowController.add(event.position, color, this.config.glowIntensity * tuning.glowMultiplier * event.intensity, this.config.revealDurationMs, 16 + event.intensity * 18);
     }
-    if (this.config.particlesEnabled && this.config.trailEnabled) this.emitTrail(event.position, event.targetPosition, color, event.intensity, true);
-    if (this.config.smokeEnabled && tuning.smokeMultiplier > 0) {
+    if (this.config.particlesEnabled && this.config.trailEnabled) {
+      if (this.isStardustPreset()) {
+        const trail = this.trails.get(event.pieceId);
+        if (trail) this.emitTrail(event.position, trail, color, event.intensity, false, true);
+      } else {
+        this.emitTrail(event.position, event.targetPosition, color, event.intensity, true);
+      }
+    }
+    if (!this.isStardustPreset() && this.config.smokeEnabled && tuning.smokeMultiplier > 0) {
       this.emitSmokeLaunch(event.position, event.targetPosition, this.smokeColorFor(behavior, color), event.intensity, behavior);
     }
     this.lastEvent = `launch:${event.pieceId}`;
@@ -177,12 +216,17 @@ export class VisualFxEngine {
   onPieceLock(event: FxPieceLockEvent): void {
     if (!this.acceptPieceLockEvent(event)) return;
     const tuning = getFxPresetTuning(this.config.preset);
-    const color = colorForPitch(this.config.palette, event.midiNote);
     const behavior = this.behaviorForMidi(event.midiNote);
-    if (this.config.lockImpactEnabled) this.impactEffect.add(event.position, color, this.config.impactIntensity * event.intensity);
-    if (this.config.particlesEnabled) this.emitSparkles(event.position, color, event.intensity);
-    if (this.config.smokeEnabled && tuning.smokeMultiplier > 0) this.emitSmokeBurst(event.position, this.smokeColorFor(behavior, color), event.intensity, behavior);
-    if (this.config.particlesEnabled && behavior === "high") {
+    const sourceColor = colorForPitch(this.config.palette, event.midiNote);
+    const color = this.isStardustPreset() ? this.stardustColorFor(behavior, sourceColor, event.midiNote) : sourceColor;
+    if (this.isStardustPreset() && this.config.particlesEnabled) {
+      this.emitStardustLockBurst(event.position, color, event.intensity, behavior);
+    } else if (this.config.lockImpactEnabled) {
+      this.impactEffect.add(event.position, color, this.config.impactIntensity * event.intensity);
+    }
+    if (!this.isStardustPreset() && this.config.particlesEnabled) this.emitSparkles(event.position, color, event.intensity);
+    if (!this.isStardustPreset() && this.config.smokeEnabled && tuning.smokeMultiplier > 0) this.emitSmokeBurst(event.position, this.smokeColorFor(behavior, color), event.intensity, behavior);
+    if (!this.isStardustPreset() && this.config.particlesEnabled && behavior === "high") {
       this.emitHighShimmer(event.position, { x: 0, y: -1 }, color, event.intensity, 0);
     }
     if (this.config.glowEnabled) this.glowController.add(event.position, color, this.config.glowIntensity * tuning.glowMultiplier * event.intensity, this.config.revealDurationMs * 0.8, 22 + event.intensity * 18);
@@ -284,7 +328,7 @@ export class VisualFxEngine {
                 trail.emissionIndex
               );
             }
-            if (this.config.particlesEnabled && behavior === "high" && trail.emissionIndex % 2 === 0) {
+            if (!this.isStardustPreset() && this.config.particlesEnabled && behavior === "high" && trail.emissionIndex % 2 === 0) {
               this.emitHighShimmer(position, { x: position.x - trail.x, y: position.y - trail.y }, trail.color, trail.intensity, trail.emissionIndex);
             }
             trail.lastSmokeEmitMs = playbackTimeMs;
@@ -429,7 +473,7 @@ export class VisualFxEngine {
                 trail.emissionIndex
               );
             }
-            if (this.config.particlesEnabled && behavior === "high" && trail.emissionIndex % 2 === 0) {
+            if (!this.isStardustPreset() && this.config.particlesEnabled && behavior === "high" && trail.emissionIndex % 2 === 0) {
               this.emitHighShimmer(position, { x: position.x - trail.x, y: position.y - trail.y }, trail.color, trail.intensity, trail.emissionIndex);
             }
             trail.lastSmokeEmitMs = this.demoTimeMs;
@@ -482,7 +526,18 @@ export class VisualFxEngine {
     return graphic;
   }
 
-  private emitTrail(position: { x: number; y: number }, target: { x: number; y: number } | TrailState, color: number, intensity: number, invert = false): void {
+  private emitTrail(
+    position: { x: number; y: number },
+    target: { x: number; y: number } | TrailState,
+    color: number,
+    intensity: number,
+    invert = false,
+    fullPath = false
+  ): void {
+    if (this.isStardustPreset()) {
+      this.emitStardustTrail(position, target, color, intensity, invert, fullPath);
+      return;
+    }
     const tuning = getFxPresetTuning(this.config.preset);
     const dx = target.x - position.x;
     const dy = target.y - position.y;
@@ -521,6 +576,218 @@ export class VisualFxEngine {
         color,
         this.config.particleSize * tuning.particleScale * (0.55 + intensity * 0.9),
         "spark-cross"
+      );
+    }
+  }
+
+  private emitStardustTrail(
+    position: { x: number; y: number },
+    target: { x: number; y: number } | TrailState,
+    color: number,
+    intensity: number,
+    invert: boolean,
+    fullPath: boolean
+  ): void {
+    const tuning = getFxPresetTuning(this.config.preset);
+    const hasTrail = "points" in target;
+    const isLocalTrail = hasTrail && !fullPath;
+    const from = hasTrail ? target.origin : position;
+    const to = hasTrail ? target.targetPosition : target;
+    const dx = to.x - from.x;
+    const dy = to.y - from.y;
+    const distance = Math.hypot(dx, dy) || 1;
+    const normalX = -dy / distance;
+    const normalY = dx / distance;
+    const direction = invert ? -1 : 1;
+    const behavior = hasTrail ? this.behaviorForMidi(target.midiNote) : "neutral";
+    const count = isLocalTrail
+      ? Math.max(6, Math.round(5 + this.config.particleDensity * 4))
+      : Math.max(
+        30,
+        Math.round(
+          (behavior === "bass" ? 38 : behavior === "high" ? 34 : 36)
+          * (0.8 + this.config.particleDensity * 0.55)
+          * tuning.trailMultiplier
+          * 0.64
+        )
+      );
+    const control = hasTrail
+      ? target.control
+      : {
+        x: from.x + dx * 0.5 + normalX * (this.random.nextFloat() > 0.5 ? 1 : -1) * (72 + distance * 0.15) * (0.45 + this.config.pathCurvature * 1.1) * tuning.curveMultiplier,
+        y: from.y + dy * 0.5 + normalY * (this.random.nextFloat() > 0.5 ? 1 : -1) * (72 + distance * 0.15) * (0.45 + this.config.pathCurvature * 1.1) * tuning.curveMultiplier
+      };
+    const laneCount = isLocalTrail ? 1 : behavior === "bass" ? 3 : 2;
+    const laneSpacing = behavior === "bass" ? 13 : behavior === "high" ? 8 : 10;
+    const currentProgress = isLocalTrail
+      ? Math.max(0, Math.min(1, Math.hypot(position.x - from.x, position.y - from.y) / distance))
+      : 0;
+
+    for (let index = 0; index < count; index += 1) {
+      const along = isLocalTrail
+        ? Math.max(0, Math.min(1, currentProgress - 0.16 + (index + this.random.nextFloat()) / count * 0.22))
+        : (index + 0.2 + this.random.nextFloat() * 0.8) / count;
+      const pathPoint = this.quadraticBezier(from, control, to, along);
+      const derivative = {
+        x: 2 * (1 - along) * (control.x - from.x) + 2 * along * (to.x - control.x),
+        y: 2 * (1 - along) * (control.y - from.y) + 2 * along * (to.y - control.y)
+      };
+      const derivativeLength = Math.hypot(derivative.x, derivative.y) || 1;
+      const tangentX = derivative.x / derivativeLength;
+      const tangentY = derivative.y / derivativeLength;
+      const localNormalX = -tangentY;
+      const localNormalY = tangentX;
+      const lane = isLocalTrail ? 0 : (index % laneCount) - (laneCount - 1) * 0.5;
+      const laneBend = lane * laneSpacing * Math.sin(along * Math.PI);
+      const spread = this.random.signed(isLocalTrail ? 4 + this.config.pathCurvature * 12 : 6 + this.config.pathCurvature * 22) * (0.35 + along * 0.9) + laneBend;
+      const anchor = {
+        x: pathPoint.x + localNormalX * spread,
+        y: pathPoint.y + localNormalY * spread
+      };
+      const tangent = this.random.range(isLocalTrail ? 10 : 16, isLocalTrail ? 28 : 42) * (0.62 + intensity * 0.7);
+      const curl = (0.45 + along) * tuning.swirl * this.random.signed(isLocalTrail ? 12 : 28 + this.config.pathCurvature * 26) * (behavior === "high" ? 1.28 : behavior === "bass" ? 0.72 : 1);
+      const textureRoll = this.random.nextFloat();
+      const textureId: FxTextureId = textureRoll < 0.2
+        ? "spark-field"
+        : textureRoll < 0.5
+          ? "micro-spark"
+          : textureRoll < 0.76
+            ? "particle-cluster"
+            : "micro-streak";
+      const textureScale = textureId === "micro-streak"
+        ? 0.26
+        : textureId === "spark-field"
+          ? 0.2
+          : textureId === "particle-cluster"
+            ? 0.18
+            : 0.16;
+      const particleColor = index % 11 === 0 ? 0xffffff : color;
+      const velocity = {
+        x: direction * tangentX * tangent + localNormalX * curl,
+        y: direction * tangentY * tangent + localNormalY * curl - this.random.range(1, isLocalTrail ? 6 : 12)
+      };
+      this.tryAcquireParticle(
+        anchor,
+        velocity,
+        this.config.particleLifetimeMs * this.random.range(isLocalTrail ? 0.34 : 0.72, isLocalTrail ? 0.7 : 1.42),
+        particleColor,
+        this.config.particleSize * tuning.particleScale * textureScale * this.random.range(0.72, 1.42),
+        textureId,
+        (0.62 + intensity * 0.34) * this.random.range(0.82, 1.18)
+      );
+    }
+  }
+
+  private emitStardustNoteBurst(
+    position: { x: number; y: number },
+    color: number,
+    intensity: number,
+    behavior: FxSmokeBehavior
+  ): void {
+    const tuning = getFxPresetTuning(this.config.preset);
+    const flashCount = behavior === "high" ? 2 : 3;
+    for (let index = 0; index < flashCount; index += 1) {
+      this.tryAcquireParticle(
+        { x: position.x + this.random.signed(2.5), y: position.y + this.random.signed(2.5) },
+        { x: this.random.signed(3), y: -this.random.range(4, 10) },
+        this.random.range(150, 260),
+        0xffffff,
+        this.config.particleSize * tuning.particleScale * this.random.range(0.42, 0.72),
+        "soft-bokeh",
+        0.52 + intensity * 0.34
+      );
+    }
+    const count = behavior === "bass" ? 42 : behavior === "high" ? 38 : 40;
+    const spread = behavior === "bass" ? 12 : behavior === "high" ? 7 : 10;
+    const speed = behavior === "bass" ? 28 : behavior === "high" ? 48 : 36;
+
+    for (let index = 0; index < count; index += 1) {
+      const progress = (index + this.random.nextFloat()) / count;
+      const angle = index * 2.399963 + this.random.signed(0.22);
+      const radial = this.random.range(0.28, 1);
+      const plume = 0.35 + progress * 0.9;
+      const tangent = behavior === "high" ? 1.55 : behavior === "bass" ? 0.42 : 0.9;
+      const radius = this.random.range(0.5, spread) * radial * (0.7 + plume * 0.34);
+      const textureId: FxTextureId = behavior === "high"
+        ? (index % 5 === 0 ? "spark-field" : index % 2 === 0 ? "micro-streak" : "micro-spark")
+        : (index % 7 === 0 ? "spark-field" : index % 5 === 0 ? "particle-cluster" : index % 3 === 0 ? "micro-streak" : "micro-spark");
+      const textureScale = textureId === "micro-streak"
+        ? 0.3
+        : textureId === "spark-field"
+          ? 0.22
+          : textureId === "particle-cluster"
+            ? 0.22
+            : 0.18;
+      const particleColor = index % 13 === 0 ? 0xffffff : color;
+      const lateral = behavior === "bass" ? 1.6 : behavior === "high" ? 0.65 : 1;
+      const upward = behavior === "bass"
+        ? speed * (0.8 + plume * 0.75)
+        : behavior === "high"
+          ? speed * (1.1 + plume * 1.25)
+          : speed * (0.95 + plume);
+      this.tryAcquireParticle(
+        {
+          x: position.x + Math.cos(angle) * radius,
+          y: position.y + Math.sin(angle) * radius * (behavior === "high" ? 0.32 : 0.52)
+        },
+        {
+          x: Math.cos(angle) * speed * radial * lateral - Math.sin(angle) * speed * tangent * 0.28 + this.random.signed(7),
+          y: -upward + Math.sin(angle) * speed * radial * 0.22 + Math.cos(angle) * speed * tangent * 0.14
+        },
+        this.config.particleLifetimeMs * this.random.range(0.72, behavior === "high" ? 1.45 : 1.7),
+        particleColor,
+        this.config.particleSize * tuning.particleScale * textureScale * this.random.range(0.82, 1.5) * (0.78 + intensity * 0.52),
+        textureId,
+        (0.62 + intensity * 0.34) * this.random.range(0.82, 1.16)
+      );
+    }
+  }
+
+  private emitStardustLockBurst(
+    position: { x: number; y: number },
+    color: number,
+    intensity: number,
+    behavior: FxSmokeBehavior
+  ): void {
+    const tuning = getFxPresetTuning(this.config.preset);
+    const count = behavior === "high" ? 34 : behavior === "bass" ? 30 : 32;
+    const speed = behavior === "bass" ? 24 : behavior === "high" ? 38 : 30;
+    for (let index = 0; index < (behavior === "high" ? 2 : 3); index += 1) {
+      this.tryAcquireParticle(
+        { x: position.x + this.random.signed(2), y: position.y + this.random.signed(2) },
+        { x: this.random.signed(4), y: -this.random.range(2, 8) },
+        this.random.range(120, 220),
+        0xffffff,
+        this.config.particleSize * tuning.particleScale * this.random.range(0.38, 0.66),
+        "soft-bokeh",
+        0.52 + intensity * 0.3
+      );
+    }
+
+    for (let index = 0; index < count; index += 1) {
+      const angle = (Math.PI * 2 * index) / count + this.random.signed(0.22);
+      const radius = this.random.range(1, behavior === "high" ? 10 : 8);
+      const curl = speed * (behavior === "high" ? 0.78 : behavior === "bass" ? 0.22 : 0.42);
+      const textureId: FxTextureId = index % 7 === 0 ? "spark-field" : index % 5 === 0 ? "particle-cluster" : index % 3 === 0 ? "micro-streak" : "micro-spark";
+      const textureScale = textureId === "micro-streak"
+        ? 0.34
+        : textureId === "spark-field"
+          ? 0.25
+          : textureId === "particle-cluster"
+            ? 0.24
+            : 0.2;
+      const particleColor = index % 9 === 0 ? 0xffffff : color;
+      this.tryAcquireParticle(
+        { x: position.x + Math.cos(angle) * radius, y: position.y + Math.sin(angle) * radius },
+        {
+          x: Math.cos(angle) * speed - Math.sin(angle) * curl + this.random.signed(4),
+          y: Math.sin(angle) * speed - Math.cos(angle) * curl * 0.35 + this.random.signed(4)
+        },
+        this.config.particleLifetimeMs * this.random.range(0.48, 0.92),
+        particleColor,
+        this.config.particleSize * tuning.particleScale * textureScale * this.random.range(0.9, 1.7) * (0.78 + intensity * 0.52),
+        textureId,
+        (0.66 + intensity * 0.34) * this.random.range(0.84, 1.18)
       );
     }
   }
@@ -900,6 +1167,10 @@ export class VisualFxEngine {
   }
 
   private chooseTrailTexture(): FxTextureId {
+    if (this.isStardustPreset()) {
+      const roll = this.random.nextFloat();
+      return roll < 0.45 ? "micro-spark" : roll < 0.77 ? "particle-cluster" : "micro-streak";
+    }
     let textureId: FxTextureId = this.random.nextFloat() > 0.82 ? "ember-small" : "dust-mote";
     if (textureId === this.lastTrailTexture && this.random.nextFloat() < 0.7) {
       textureId = textureId === "ember-small" ? "dust-mote" : "ember-small";
@@ -930,10 +1201,37 @@ export class VisualFxEngine {
     return (red << 16) | (green << 8) | blue;
   }
 
+  private stardustColorFor(behavior: FxSmokeBehavior, sourceColor: number, midiNote: number): number {
+    const baseColor = behavior === "bass"
+      ? 0xff8f32
+      : behavior === "high"
+        ? (midiNote % 3 === 0 ? 0xff55c9 : 0x7b9dff)
+        : (midiNote % 2 === 0 ? 0xffd36a : 0xff72c8);
+    const sourceWeight = this.config.palette === "artwork"
+      ? 0.22
+      : this.config.palette === "pitch-gradient"
+        ? 0.38
+        : 0.14;
+    const baseRed = (baseColor >> 16) & 0xff;
+    const baseGreen = (baseColor >> 8) & 0xff;
+    const baseBlue = baseColor & 0xff;
+    const sourceRed = (sourceColor >> 16) & 0xff;
+    const sourceGreen = (sourceColor >> 8) & 0xff;
+    const sourceBlue = sourceColor & 0xff;
+    const red = Math.round(baseRed * (1 - sourceWeight) + sourceRed * sourceWeight);
+    const green = Math.round(baseGreen * (1 - sourceWeight) + sourceGreen * sourceWeight);
+    const blue = Math.round(baseBlue * (1 - sourceWeight) + sourceBlue * sourceWeight);
+    return (red << 16) | (green << 8) | blue;
+  }
+
   private behaviorForMidi(midiNote: number): FxSmokeBehavior {
     if (midiNote < this.config.bassThreshold) return "bass";
     if (midiNote >= this.config.highThreshold) return "high";
     return "neutral";
+  }
+
+  private isStardustPreset(): boolean {
+    return this.config.preset === "stardust-stream";
   }
 
   private resetRandomStreams(seed: string): void {
@@ -958,7 +1256,7 @@ export class VisualFxEngine {
 
   private updateRibbons(deltaMs: number): void {
     this.ribbonLayer.clear();
-    if (!this.config.enabled || !this.config.trailEnabled) return;
+    if (!this.config.enabled || !this.config.trailEnabled || this.isStardustPreset()) return;
     const lifetime = 90 + this.config.trailLength * 620;
     for (const trail of this.trails.values()) {
       for (const point of trail.points) point.age += deltaMs;

@@ -22,6 +22,9 @@ export interface ParticleState {
   spin: number;
   phase: number;
   drag: number;
+  turbulence: number;
+  turbulenceFrequency: number;
+  rise: number;
   fadeInEnd: number;
   fadeOutStart: number;
   flipX: boolean;
@@ -73,6 +76,9 @@ export class ParticlePool {
           spin: 0,
           phase: 0,
           drag: 1.2,
+          turbulence: 0,
+          turbulenceFrequency: 1,
+          rise: 0,
           fadeInEnd: 0.08,
           fadeOutStart: 0.58,
           flipX: false,
@@ -122,17 +128,51 @@ export class ParticlePool {
     state.spin = this.random.signed(textureId === "light-streak" ? 1.4 : 3.8);
     state.phase = this.random.range(0, Math.PI * 2);
     state.drag = textureId === "light-streak" ? 0.55 : textureId === "soft-bokeh" ? 0.85 : 1.45;
-    state.fadeInEnd = textureId === "light-streak" ? 0.04 : textureId === "soft-bokeh" ? 0.12 : 0.08;
-    state.fadeOutStart = textureId === "soft-bokeh" ? 0.48 : 0.58;
+    state.turbulence = textureId === "micro-streak"
+      ? 8.5
+      : textureId === "spark-field"
+        ? 6.8
+        : textureId === "particle-cluster"
+          ? 5.2
+          : textureId === "micro-spark"
+            ? 3.8
+            : 2.2;
+    state.turbulenceFrequency = textureId === "micro-streak"
+      ? 7.2
+      : textureId === "spark-field"
+        ? 6.2
+        : textureId === "particle-cluster"
+          ? 5.4
+          : 4.2;
+    state.rise = textureId === "micro-spark" || textureId === "spark-field" || textureId === "particle-cluster" ? -4.5 : -1.2;
+    state.fadeInEnd = textureId === "light-streak"
+      ? 0.04
+      : textureId === "soft-bokeh"
+        ? 0.12
+        : textureId === "micro-streak"
+          ? 0.025
+          : textureId === "micro-spark" || textureId === "spark-field" || textureId === "particle-cluster"
+            ? 0.035
+            : 0.08;
+    state.fadeOutStart = textureId === "soft-bokeh"
+      ? 0.48
+      : textureId === "micro-streak"
+        ? 0.72
+        : textureId === "micro-spark" || textureId === "spark-field" || textureId === "particle-cluster"
+          ? 0.62
+          : 0.58;
     state.flipX = this.random.nextFloat() > 0.5;
     state.textureId = textureId;
     slot.visual.texture = this.texturePipeline?.getTexture(textureId) ?? Texture.WHITE;
     slot.visual.position.set(state.x, state.y);
     slot.visual.scale.set(state.flipX ? -state.scale : state.scale, state.scale);
+    if (textureId === "micro-streak" || textureId === "spark-field" || textureId === "light-streak") {
+      state.rotation = Math.atan2(velocity.y, velocity.x) + this.random.signed(0.24);
+    }
     slot.visual.rotation = state.rotation;
     slot.visual.tint = state.color;
     slot.visual.alpha = state.alpha;
-    slot.visual.blendMode = textureId === "light-streak" || textureId === "soft-bokeh" ? "screen" : "normal";
+    slot.visual.blendMode = blendModeForParticle(textureId);
     slot.visual.visible = true;
     this.activeParticles += 1;
     return state;
@@ -153,6 +193,9 @@ export class ParticlePool {
       state.vx *= drag;
       state.vy *= drag;
       const progress = state.age / state.lifetime;
+      const turbulencePhase = state.phase + progress * state.turbulenceFrequency * Math.PI * 2;
+      state.vx += Math.sin(turbulencePhase) * state.turbulence * deltaSeconds;
+      state.vy += Math.cos(turbulencePhase * 0.83 + state.phase * 0.7) * state.turbulence * 0.72 * deltaSeconds + state.rise * deltaSeconds;
       const fadeIn = smoothstep(0, state.fadeInEnd, progress);
       const fadeOut = 1 - smoothstep(state.fadeOutStart, 1, progress);
       state.alpha = state.baseAlpha * Math.pow(Math.max(0, fadeIn * fadeOut), 0.78);
@@ -163,7 +206,7 @@ export class ParticlePool {
       slot.visual.scale.set(state.flipX ? -state.scale : state.scale, state.scale);
       slot.visual.rotation = state.rotation;
       slot.visual.tint = state.color;
-      slot.visual.blendMode = state.textureId === "light-streak" || state.textureId === "soft-bokeh" ? "screen" : "normal";
+      slot.visual.blendMode = blendModeForParticle(state.textureId);
     }
   }
 
@@ -208,4 +251,15 @@ export class ParticlePool {
     slot.visual.alpha = 0;
     this.activeParticles = Math.max(0, this.activeParticles - 1);
   }
+}
+
+function blendModeForParticle(textureId: FxTextureId): "add" | "screen" | "normal" {
+  if (textureId === "micro-spark"
+    || textureId === "spark-field"
+    || textureId === "micro-streak"
+    || textureId === "particle-cluster"
+    || textureId === "ember-small"
+    || textureId === "spark-cross") return "add";
+  if (textureId === "light-streak" || textureId === "soft-bokeh") return "screen";
+  return "normal";
 }

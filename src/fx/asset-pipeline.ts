@@ -73,6 +73,58 @@ const DESCRIPTORS: Record<FxTextureId, FxAssetDescriptor> = {
     height: 48,
     notes: "Broken four-point sparkle for lock impacts."
   },
+  "micro-spark": {
+    id: "micro-spark",
+    type: "spark",
+    source: "procedural",
+    license: "Project-owned procedural texture",
+    commercialUse: true,
+    procedural: true,
+    atlasGroup: "particle",
+    fallbackId: "spark-cross",
+    width: 48,
+    height: 48,
+    notes: "Irregular granular spark with broken filaments for high-density energy streams."
+  },
+  "spark-field": {
+    id: "spark-field",
+    type: "spark",
+    source: "procedural",
+    license: "Project-owned procedural texture",
+    commercialUse: true,
+    procedural: true,
+    atlasGroup: "particle",
+    fallbackId: "micro-spark",
+    width: 128,
+    height: 80,
+    notes: "Dense asymmetric field of micro-sparks and broken filaments for cinematic stream lanes."
+  },
+  "micro-streak": {
+    id: "micro-streak",
+    type: "streak",
+    source: "procedural",
+    license: "Project-owned procedural texture",
+    commercialUse: true,
+    procedural: true,
+    atlasGroup: "particle",
+    fallbackId: "light-streak",
+    width: 128,
+    height: 32,
+    notes: "Thin broken filament with density variation and soft luminous core."
+  },
+  "particle-cluster": {
+    id: "particle-cluster",
+    type: "dust",
+    source: "procedural",
+    license: "Project-owned procedural texture",
+    commercialUse: true,
+    procedural: true,
+    atlasGroup: "particle",
+    fallbackId: "dust-mote",
+    width: 64,
+    height: 64,
+    notes: "Small asymmetric cluster of uneven micro-particles for natural stream breakup."
+  },
   "dust-mote": {
     id: "dust-mote",
     type: "dust",
@@ -344,6 +396,10 @@ export class FxAssetPipeline {
     if (id === "smoke-cloud-01") return paintCloud;
     if (id === "ember-small") return paintEmber;
     if (id === "spark-cross") return paintSpark;
+    if (id === "micro-spark") return paintMicroSpark;
+    if (id === "spark-field") return paintSparkField;
+    if (id === "micro-streak") return paintMicroStreak;
+    if (id === "particle-cluster") return paintParticleCluster;
     if (id === "dust-mote") return paintDust;
     if (id === "soft-bokeh") return paintBokeh;
     if (id === "light-streak") return paintStreak;
@@ -447,6 +503,114 @@ function paintSpark(context: CanvasRenderingContext2D, width: number, height: nu
     const vertical = Math.exp(-dy * 0.42) * Math.exp(-dx * 0.1);
     return Math.min(1, Math.max(horizontal, vertical) * (0.64 + noise * 0.36));
   }, [255, 247, 210]);
+  context.putImageData(image, 0, 0);
+}
+
+function paintMicroSpark(context: CanvasRenderingContext2D, width: number, height: number): void {
+  const image = context.createImageData(width, height);
+  paintAlphaField(image, width, height, (x, y) => {
+    const nx = x / width - 0.5;
+    const ny = y / height - 0.5;
+    const distance = Math.hypot(nx, ny);
+    const angle = Math.atan2(ny, nx);
+    const noise = fractalNoise(x / width * 12, y / height * 12, 67);
+    const core = Math.exp(-distance * distance * 92) * (0.62 + noise * 0.38);
+    let filaments = 0;
+    for (let arm = 0; arm < 3; arm += 1) {
+      const armAngle = arm * (Math.PI * 2 / 3) + 0.24;
+      const tangent = Math.sin(angle - armAngle);
+      const radial = Math.cos(angle - armAngle);
+      const ray = Math.exp(-Math.abs(tangent) * 30) * Math.exp(-Math.max(0, radial) * 2.4);
+      const breakup = 0.2 + fractalNoise(x / width * 18 + arm * 2.7, y / height * 18 - arm * 1.3, 73 + arm) * 0.8;
+      filaments += ray * breakup * Math.max(0, radial);
+    }
+    const crumbs = Math.pow(Math.max(0, noise - 0.44), 1.8) * Math.max(0, 1 - distance * 2.3);
+    return Math.min(1, core + filaments * 0.24 + crumbs * 0.28);
+  }, [255, 246, 208]);
+  context.putImageData(image, 0, 0);
+}
+
+function paintSparkField(context: CanvasRenderingContext2D, width: number, height: number): void {
+  const image = context.createImageData(width, height);
+  const points = Array.from({ length: 46 }, (_, index) => {
+    const t = (index + 0.5) / 46;
+    const lane = index % 3;
+    const wobble = fractalNoise(t * 9.2 + lane * 1.7, lane * 0.8 + 2.4, 121) - 0.5;
+    const x = 0.06 + t * 0.88 + wobble * 0.055;
+    const center = 0.5 + Math.sin(t * 11.5 + lane * 1.8) * 0.12 + wobble * 0.16;
+    const y = center + (lane - 1) * (0.09 + (index % 4) * 0.018) + Math.sin(index * 2.7) * 0.035;
+    return {
+      x,
+      y,
+      radius: 0.008 + (index % 5) * 0.0035,
+      alpha: 0.28 + (index % 7) * 0.085
+    };
+  });
+  paintAlphaField(image, width, height, (x, y) => {
+    const nx = x / width;
+    const ny = y / height;
+    const fineNoise = fractalNoise(nx * 22, ny * 24, 127);
+    const coarseNoise = fractalNoise(nx * 7.2 + 1.6, ny * 8.4 + 2.1, 131);
+    let density = 0;
+    for (const point of points) {
+      const dx = (nx - point.x) / point.radius;
+      const dy = (ny - point.y) / (point.radius * (0.7 + coarseNoise * 0.35));
+      const broken = 0.18 + fractalNoise(nx * 35 + point.x * 12, ny * 31 + point.y * 9, 137 + Math.round(point.x * 100)) * 0.82;
+      density += Math.exp(-(dx * dx + dy * dy) * 3.2) * point.alpha * broken;
+    }
+    const strandA = 0.5 + Math.sin(nx * 12 + coarseNoise * 2.8) * 0.14;
+    const strandB = 0.5 + Math.sin(nx * 17 + 1.9 + fineNoise * 2.2) * 0.1;
+    const filamentA = Math.exp(-Math.pow((ny - strandA) / 0.025, 2)) * Math.max(0, fineNoise - 0.56) * 0.22;
+    const filamentB = Math.exp(-Math.pow((ny - strandB) / 0.018, 2)) * Math.max(0, coarseNoise - 0.62) * 0.18;
+    const taper = Math.pow(Math.max(0, Math.sin(nx * Math.PI)), 0.42);
+    return Math.min(1, (density + filamentA + filamentB) * (0.36 + fineNoise * 0.64) * taper);
+  }, [255, 245, 210]);
+  context.putImageData(image, 0, 0);
+}
+
+function paintMicroStreak(context: CanvasRenderingContext2D, width: number, height: number): void {
+  const image = context.createImageData(width, height);
+  paintAlphaField(image, width, height, (x, y) => {
+    const nx = x / width;
+    const ny = y / height - 0.5;
+    const noise = fractalNoise(nx * 12, ny * 9 + 0.5, 83);
+    const center = Math.sin(nx * 8.7 + noise * 2.1) * 0.08 + Math.sin(nx * 19.3) * 0.025;
+    const distance = Math.abs(ny - center);
+    const core = Math.exp(-Math.pow(distance / (0.074 + Math.sin(nx * Math.PI) * 0.045), 2) * 1.6);
+    const filament = Math.exp(-Math.pow((distance - 0.14 - noise * 0.028) / 0.028, 2) * 2.2) * 0.32;
+    const breakup = 0.2 + fractalNoise(nx * 26 + 1.2, ny * 17 + 3.8, 89) * 0.8;
+    const taper = Math.pow(Math.max(0, Math.sin(nx * Math.PI)), 0.56);
+    return Math.min(1, (core + filament) * breakup * taper);
+  }, [255, 235, 162]);
+  context.putImageData(image, 0, 0);
+}
+
+function paintParticleCluster(context: CanvasRenderingContext2D, width: number, height: number): void {
+  const image = context.createImageData(width, height);
+  const points = Array.from({ length: 13 }, (_, index) => {
+    const angle = index * 2.399963 + 0.35;
+    const radial = 0.08 + (index % 4) * 0.035 + Math.sin(index * 4.7) * 0.018;
+    return {
+      x: 0.5 + Math.cos(angle) * radial * 1.2,
+      y: 0.5 + Math.sin(angle) * radial * 0.82,
+      r: 0.018 + (index % 3) * 0.009,
+      a: 0.34 + (index % 5) * 0.12
+    };
+  });
+  paintAlphaField(image, width, height, (x, y) => {
+    const nx = x / width;
+    const ny = y / height;
+    const noise = fractalNoise(nx * 16, ny * 16, 97);
+    let density = 0;
+    for (const point of points) {
+      const dx = (nx - point.x) / point.r;
+      const dy = (ny - point.y) / (point.r * (0.56 + noise * 0.38));
+      const breakup = 0.34 + fractalNoise(nx * 26 + point.x * 9, ny * 26 + point.y * 7, 101 + Math.round(point.x * 100)) * 0.66;
+      density += Math.exp(-(dx * dx + dy * dy) * 2.8) * point.a * breakup;
+    }
+    const wisps = Math.exp(-Math.pow((ny - (0.46 + Math.sin(nx * 15) * 0.06)) / 0.035, 2)) * Math.max(0, noise - 0.5) * 0.2;
+    return Math.min(1, (density + wisps) * (0.32 + noise * 0.68));
+  }, [255, 240, 184]);
   context.putImageData(image, 0, 0);
 }
 
