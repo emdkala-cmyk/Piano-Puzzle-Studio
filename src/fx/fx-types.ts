@@ -85,11 +85,11 @@ export interface FxDebugStats {
   transformMismatchCount: number;
 }
 
-export const MAX_ACTIVE_PARTICLES = 3200;
-export const MAX_ACTIVE_SMOKE = 512;
+export const MAX_ACTIVE_PARTICLES = 5000;
+export const MAX_ACTIVE_SMOKE = 640;
 export const NATURAL_SMOKE_LAYER_COUNT = 3;
-export const MAX_SMOKE_SPAWNS_PER_FRAME = 28;
-export const MAX_PARTICLE_SPAWNS_PER_FRAME = 420;
+export const MAX_SMOKE_SPAWNS_PER_FRAME = 40;
+export const MAX_PARTICLE_SPAWNS_PER_FRAME = 600;
 
 export const DEFAULT_VISUAL_FX_CONFIG: VisualFxConfig = {
   enabled: true,
@@ -112,7 +112,7 @@ export const DEFAULT_VISUAL_FX_CONFIG: VisualFxConfig = {
   smokeLayerCount: NATURAL_SMOKE_LAYER_COUNT,
   smokeEmissionIntervalMs: 48,
   smokeFrameBudget: MAX_SMOKE_SPAWNS_PER_FRAME,
-  particleFrameBudget: 360,
+  particleFrameBudget: 520,
   bassThreshold: 48,
   highThreshold: 84,
   particleSize: 0.9,

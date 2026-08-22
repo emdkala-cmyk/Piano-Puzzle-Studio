@@ -697,9 +697,9 @@ export class VisualFxEngine {
         this.onPieceLock({ pieceId: piece.id, position: piece.target, midiNote: piece.midiNote, intensity: 1.0, playbackTimeMs: this.demoTimeMs });
         // Burst particles at target
         if (this.config.particlesEnabled) {
-          for (let i = 0; i < 42; i++) {
-            const angle = (Math.PI * 2 * i) / 42 + this.random.signed(0.12);
-            const speed = this.random.range(18, 52);
+          for (let i = 0; i < 60; i++) {
+            const angle = (Math.PI * 2 * i) / 60 + this.random.signed(0.12);
+            const speed = this.random.range(18, 58);
             this.tryAcquireParticle(
               { x: piece.target.x + this.random.signed(2), y: piece.target.y + this.random.signed(2) },
               { x: Math.cos(angle) * speed, y: Math.sin(angle) * speed },
@@ -841,14 +841,14 @@ export class VisualFxEngine {
     const direction = invert ? -1 : 1;
     const behavior = hasTrail ? this.behaviorForMidi(target.midiNote) : "neutral";
     const count = isLocalTrail
-      ? Math.max(8, Math.round(6 + this.config.particleDensity * 6))
+      ? Math.max(12, Math.round(8 + this.config.particleDensity * 8))
       : Math.max(
-        35,
+        50,
         Math.round(
-          (behavior === "bass" ? 44 : behavior === "high" ? 40 : 42)
+          (behavior === "bass" ? 58 : behavior === "high" ? 52 : 55)
           * (0.8 + this.config.particleDensity * 0.55)
           * tuning.trailMultiplier
-          * 0.58
+          * 0.65
         )
       );
     const control = hasTrail
@@ -937,7 +937,7 @@ export class VisualFxEngine {
         0.65 + intensity * 0.3
       );
     }
-    const count = behavior === "bass" ? 56 : behavior === "high" ? 50 : 54;
+    const count = behavior === "bass" ? 72 : behavior === "high" ? 65 : 68;
     const spread = behavior === "bass" ? 12 : behavior === "high" ? 7 : 10;
     const speed = behavior === "bass" ? 28 : behavior === "high" ? 48 : 36;
 
@@ -990,7 +990,7 @@ export class VisualFxEngine {
     behavior: FxSmokeBehavior
   ): void {
     const tuning = getFxPresetTuning(this.config.preset);
-    const count = behavior === "high" ? 46 : behavior === "bass" ? 42 : 44;
+    const count = behavior === "high" ? 58 : behavior === "bass" ? 54 : 56;
     const speed = behavior === "bass" ? 24 : behavior === "high" ? 38 : 30;
     for (let index = 0; index < (behavior === "high" ? 2 : 3); index += 1) {
       this.tryAcquireParticle(
@@ -1562,10 +1562,10 @@ export class VisualFxEngine {
     this.vortexIntensity = Math.min(1, this.vortexIntensity + deltaMs * 0.001);
     this.vortexAngle += deltaMs * 0.0008;
     this.vortexSpawnTimer += deltaMs;
-    if (this.vortexSpawnTimer < 8) return;
+    if (this.vortexSpawnTimer < 5) return;
     this.vortexSpawnTimer = 0;
     const tuning = getFxPresetTuning(this.config.preset);
-    const baseCount = Math.round(6 * this.config.particleDensity * tuning.trailMultiplier * this.vortexIntensity);
+    const baseCount = Math.round(14 * this.config.particleDensity * tuning.trailMultiplier * this.vortexIntensity);
     for (let i = 0; i < baseCount; i++) {
       const t = this.random.nextFloat();
       const spiralAngle = this.vortexAngle + t * Math.PI * 6 + this.random.signed(0.3);
@@ -1617,10 +1617,10 @@ export class VisualFxEngine {
     }
     this.galaxyAngle += deltaMs * 0.0005;
     this.galaxySpawnTimer += deltaMs;
-    if (this.galaxySpawnTimer < 10) return;
+    if (this.galaxySpawnTimer < 6) return;
     this.galaxySpawnTimer = 0;
     const tuning = getFxPresetTuning(this.config.preset);
-    const baseCount = Math.round(5 * this.config.particleDensity * tuning.trailMultiplier);
+    const baseCount = Math.round(12 * this.config.particleDensity * tuning.trailMultiplier);
     for (let i = 0; i < baseCount; i++) {
       const t = this.random.nextFloat();
       const armAngle = this.galaxyAngle + t * Math.PI * 4 + (i % 2 === 0 ? 0 : Math.PI * 2 / 3) + this.random.signed(0.4);
