@@ -11,15 +11,15 @@ const DESCRIPTORS: Record<FxTextureId, FxAssetDescriptor> = {
   "smoke-wisp-01": {
     id: "smoke-wisp-01",
     type: "smoke",
-    source: "procedural",
-    license: "Project-owned procedural texture",
+    source: "bundled",
+    license: "Project-owned AI-generated texture; generation record retained with the project",
     commercialUse: true,
-    procedural: true,
+    procedural: false,
     atlasGroup: "smoke",
     fallbackId: "smoke-cloud-01",
-    width: 128,
-    height: 128,
-    notes: "Irregular multi-lobe smoke silhouette with layered deterministic noise."
+    width: 512,
+    height: 768,
+    notes: "Bundled volumetric smoke plume with chroma-key removal and procedural fallback."
   },
   "smoke-wisp-02": {
     id: "smoke-wisp-02",
@@ -37,15 +37,15 @@ const DESCRIPTORS: Record<FxTextureId, FxAssetDescriptor> = {
   "smoke-cloud-01": {
     id: "smoke-cloud-01",
     type: "smoke",
-    source: "procedural",
-    license: "Project-owned procedural texture",
+    source: "bundled",
+    license: "Project-owned AI-generated texture; generation record retained with the project",
     commercialUse: true,
-    procedural: true,
+    procedural: false,
     atlasGroup: "smoke",
     fallbackId: "smoke-wisp-01",
-    width: 160,
-    height: 160,
-    notes: "Wide low-alpha cloud used as a secondary depth layer."
+    width: 512,
+    height: 512,
+    notes: "Bundled compact smoke burst with chroma-key removal and procedural fallback."
   },
   "ember-small": {
     id: "ember-small",
@@ -102,15 +102,15 @@ const DESCRIPTORS: Record<FxTextureId, FxAssetDescriptor> = {
   "light-streak": {
     id: "light-streak",
     type: "streak",
-    source: "procedural",
-    license: "Project-owned procedural texture",
+    source: "bundled",
+    license: "Project-owned AI-generated texture; generation record retained with the project",
     commercialUse: true,
-    procedural: true,
+    procedural: false,
     atlasGroup: "particle",
     fallbackId: "soft-bokeh",
-    width: 256,
-    height: 48,
-    notes: "Tapered irregular streak reserved for the future ribbon emitter."
+    width: 768,
+    height: 384,
+    notes: "Bundled smoke-light ribbon with chroma-key removal and procedural fallback."
   },
   "dissolve-noise": {
     id: "dissolve-noise",
@@ -127,6 +127,12 @@ const DESCRIPTORS: Record<FxTextureId, FxAssetDescriptor> = {
   }
 };
 
+const BUNDLED_SOURCES: Partial<Record<FxTextureId, string>> = {
+  "smoke-wisp-01": new URL("../assets/fx/golden-smoke-wisp-source.png", import.meta.url).href,
+  "smoke-cloud-01": new URL("../assets/fx/golden-smoke-burst-source.png", import.meta.url).href,
+  "light-streak": new URL("../assets/fx/golden-smoke-ribbon-source.png", import.meta.url).href
+};
+
 type TexturePainter = (context: CanvasRenderingContext2D, width: number, height: number, random: SeededRandom) => void;
 
 export class FxAssetPipeline {
@@ -136,6 +142,8 @@ export class FxAssetPipeline {
   private readonly descriptors = new Map<FxTextureId, FxAssetDescriptor>(
     FX_TEXTURE_IDS.map((id) => [id, { ...DESCRIPTORS[id] }])
   );
+  private debugGallery: HTMLDivElement | undefined;
+  private loadGeneration = 0;
   private initialized = false;
 
   initialize(): void {
@@ -148,6 +156,8 @@ export class FxAssetPipeline {
       if (result.canvas) this.previewSources.set(id, result.canvas);
       if (result.texture !== Texture.WHITE) this.ownedTextures.add(result.texture);
     }
+    const generation = ++this.loadGeneration;
+    void this.loadBundledOverrides(generation);
   }
 
   getTexture(id: FxTextureId): Texture {
@@ -202,6 +212,7 @@ export class FxAssetPipeline {
     this.textures.set(id, texture);
     this.previewSources.delete(id);
     if (owned) this.ownedTextures.add(texture);
+    this.refreshDebugGallery();
   }
 
   /**
@@ -223,6 +234,29 @@ export class FxAssetPipeline {
     const gallery = document.createElement("div");
     gallery.dataset.fxAssetGallery = "true";
     gallery.className = "fx-asset-gallery";
+    this.debugGallery = gallery;
+    this.renderDebugGallery();
+    return gallery;
+  }
+
+  dispose(): void {
+    this.loadGeneration += 1;
+    this.debugGallery = undefined;
+    for (const texture of this.ownedTextures) texture.destroy(true);
+    this.ownedTextures.clear();
+    this.previewSources.clear();
+    this.textures.clear();
+    this.descriptors.clear();
+    for (const id of FX_TEXTURE_IDS) {
+      this.descriptors.set(id, { ...DESCRIPTORS[id] });
+    }
+    this.initialized = false;
+  }
+
+  private renderDebugGallery(): void {
+    const gallery = this.debugGallery;
+    if (!gallery) return;
+    gallery.replaceChildren();
     const heading = document.createElement("div");
     heading.className = "fx-dom-heading";
     heading.textContent = "Asset Preview Gallery / Sprite Variations";
@@ -262,19 +296,35 @@ export class FxAssetPipeline {
       card.append(preview, label);
       gallery.appendChild(card);
     }
-    return gallery;
   }
 
-  dispose(): void {
-    for (const texture of this.ownedTextures) texture.destroy(true);
-    this.ownedTextures.clear();
-    this.previewSources.clear();
-    this.textures.clear();
-    this.descriptors.clear();
-    for (const id of FX_TEXTURE_IDS) {
-      this.descriptors.set(id, { ...DESCRIPTORS[id] });
-    }
-    this.initialized = false;
+  private refreshDebugGallery(): void {
+    if (this.debugGallery) this.renderDebugGallery();
+  }
+
+  private async loadBundledOverrides(generation: number): Promise<void> {
+    if (typeof document === "undefined") return;
+    const entries = Object.entries(BUNDLED_SOURCES) as Array<[FxTextureId, string]>;
+    await Promise.all(entries.map(async ([id, url]) => {
+      try {
+        const canvas = await loadChromaKeyCanvas(url);
+        if (!this.initialized || generation !== this.loadGeneration) return;
+        const texture = Texture.from(canvas);
+        this.registerExternalTexture(id, texture, {
+          source: "bundled",
+          type: this.getDescriptor(id).type,
+          atlasGroup: this.getDescriptor(id).atlasGroup,
+          fallbackId: this.getDescriptor(id).fallbackId,
+          license: "Project-owned AI-generated texture; generated for this project and retained with its source record",
+          commercialUse: true,
+          notes: "Runtime chroma-key removal with procedural fallback."
+        }, true);
+        this.previewSources.set(id, canvas);
+        this.refreshDebugGallery();
+      } catch {
+        // The procedural texture remains active when an optional bundled asset fails to load.
+      }
+    }));
   }
 
   private createProceduralTexture(descriptor: FxAssetDescriptor): { texture: Texture; canvas?: HTMLCanvasElement } {
@@ -299,6 +349,51 @@ export class FxAssetPipeline {
     if (id === "light-streak") return paintStreak;
     return paintNoise;
   }
+}
+
+async function loadChromaKeyCanvas(url: string): Promise<HTMLCanvasElement> {
+  const image = await loadImage(url);
+  const maxDimension = Math.max(image.naturalWidth, image.naturalHeight);
+  const scale = Math.min(1, 512 / Math.max(1, maxDimension));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+  canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+  const context = canvas.getContext("2d", { willReadFrequently: true });
+  if (!context) throw new Error("Unable to create FX asset canvas.");
+  context.drawImage(image, 0, 0, canvas.width, canvas.height);
+  const pixels = context.getImageData(0, 0, canvas.width, canvas.height);
+  for (let index = 0; index < pixels.data.length; index += 4) {
+    const red = pixels.data[index];
+    const green = pixels.data[index + 1];
+    const blue = pixels.data[index + 2];
+    const greenExcess = Math.max(0, green - Math.max(red, blue));
+    const saturation = Math.max(0, green - Math.min(red, blue));
+    const keyStrength = smoothScalar(0.05, 0.72, Math.min(1, (greenExcess / 120) * (saturation / 90)));
+    const despillStrength = smoothScalar(0.02, 0.42, Math.min(1, greenExcess / 64));
+    if (despillStrength > 0) {
+      pixels.data[index + 1] = Math.round(green * (1 - despillStrength) + ((red + blue) * 0.5) * despillStrength);
+    }
+    if (keyStrength > 0) {
+      pixels.data[index + 3] = Math.round(pixels.data[index + 3] * (1 - keyStrength));
+    }
+  }
+  context.putImageData(pixels, 0, 0);
+  return canvas;
+}
+
+function loadImage(url: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.decoding = "async";
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error(`Unable to load FX asset: ${url}`));
+    image.src = url;
+  });
+}
+
+function smoothScalar(edge0: number, edge1: number, value: number): number {
+  const t = Math.min(1, Math.max(0, (value - edge0) / Math.max(0.0001, edge1 - edge0)));
+  return t * t * (3 - 2 * t);
 }
 
 function paintSmoke(context: CanvasRenderingContext2D, width: number, height: number, _random: SeededRandom, variant: number): void {

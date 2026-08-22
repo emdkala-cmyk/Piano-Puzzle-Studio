@@ -87,7 +87,7 @@ export class VisualFxEngine {
   private lastTrailTexture: FxTextureId = "dust-mote";
 
   constructor() {
-    this.layer.addChild(this.lightingController.layer, this.smokeController.layer, this.demoLayer, this.ribbonLayer, this.particlePool.layer, this.glowController.layer, this.impactEffect.layer);
+    this.layer.addChild(this.lightingController.layer, this.demoLayer, this.smokeController.layer, this.ribbonLayer, this.particlePool.layer, this.glowController.layer, this.impactEffect.layer);
   }
 
   initialize(stage: Container, config?: Partial<VisualFxConfig>): void {
@@ -95,6 +95,9 @@ export class VisualFxEngine {
     this.assetPipeline.initialize();
     this.particlePool.setTexturePipeline(this.assetPipeline);
     this.smokeController.setTexturePipeline(this.assetPipeline);
+    this.glowController.setTexturePipeline(this.assetPipeline);
+    this.impactEffect.setTexturePipeline(this.assetPipeline);
+    this.lightingController.setTexturePipeline(this.assetPipeline);
     this.resetRandomStreams("piano-puzzle-fx");
     this.layer.visible = this.config.enabled;
     if (!this.layer.parent) stage.addChild(this.layer);
@@ -653,7 +656,11 @@ export class VisualFxEngine {
     const normalX = -dy / distance;
     const normalY = dx / distance;
     const tangentSpeed = behavior === "bass" ? 4 : behavior === "high" ? 13 : 7;
-    const sampleCount = behavior === "high" ? 1 : Math.min(3, Math.max(1, Math.ceil(distance / 48)));
+    const sampleCount = behavior === "bass"
+      ? Math.min(4, Math.max(2, Math.ceil(distance / 34)))
+      : behavior === "high"
+        ? 1
+        : Math.min(3, Math.max(2, Math.ceil(distance / 42)));
     const baseLifetime = this.config.particleLifetimeMs * (behavior === "bass" ? 2.4 : behavior === "high" ? 1.18 : 1.9);
     const smokeIntensity = this.smokeIntensityMultiplier(behavior);
     const baseAlpha = (0.17 + intensity * 0.22) * smokeIntensity;
@@ -673,7 +680,7 @@ export class VisualFxEngine {
         x: dx / distance * tangentSpeed + normalX * Math.sin(packetPhase) * 3,
         y: dy / distance * tangentSpeed + normalY * Math.cos(packetPhase) * 3 - (behavior === "bass" ? 1 : 3.5)
       };
-      const sampleAlpha = baseAlpha * (1 - sampleIndex / Math.max(1, sampleCount) * 0.16);
+      const sampleAlpha = baseAlpha * (1 - sampleIndex / Math.max(1, sampleCount) * 0.12);
 
       this.emitSmokeLayer(
         basePosition,
@@ -685,14 +692,14 @@ export class VisualFxEngine {
         "core",
         behavior
       );
-      if (behavior !== "high" && this.config.smokeLayerCount >= 2) {
+      if (this.config.smokeLayerCount >= 2) {
         this.emitSmokeLayer(
           { x: basePosition.x + normalX * this.random.signed(7), y: basePosition.y + normalY * this.random.signed(7) },
           { x: baseVelocity.x * 0.72 + normalX * this.random.signed(4), y: baseVelocity.y * 0.72 + normalY * this.random.signed(4) },
           baseLifetime * 1.2,
           color,
           baseRadius * tuning.smokeVolumeScale * this.random.range(12, 18),
-          sampleAlpha * 0.72,
+          sampleAlpha * (behavior === "high" ? 0.36 : 0.72),
           "volume",
           behavior
         );
@@ -904,13 +911,13 @@ export class VisualFxEngine {
   private smokeIntensityMultiplier(behavior: FxSmokeBehavior): number {
     const tuning = getFxPresetTuning(this.config.preset);
     const behaviorMultiplier = behavior === "bass" ? tuning.bassSmokeMultiplier : behavior === "high" ? tuning.highSmokeMultiplier : 1;
-    const densityMultiplier = 0.35 + this.config.smokeDensity * 0.9;
-    return Math.max(0.08, Math.min(2.2, tuning.smokeMultiplier * behaviorMultiplier * densityMultiplier));
+    const densityMultiplier = 0.55 + this.config.smokeDensity * 1.2;
+    return Math.max(0.08, Math.min(2.6, tuning.smokeMultiplier * behaviorMultiplier * densityMultiplier));
   }
 
   private smokeColorFor(behavior: FxSmokeBehavior, sourceColor: number): number {
     const neutralColor = behavior === "bass" ? 0xd4ad70 : behavior === "high" ? 0xe9dfbc : 0xc9cecc;
-    const sourceWeight = this.config.palette === "neon" ? 0.32 : this.config.palette === "gold" ? 0.18 : 0.24;
+    const sourceWeight = this.config.palette === "neon" ? 0.14 : this.config.palette === "pitch-gradient" ? 0.08 : this.config.palette === "gold" ? 0.04 : 0.06;
     const neutralRed = (neutralColor >> 16) & 0xff;
     const neutralGreen = (neutralColor >> 8) & 0xff;
     const neutralBlue = neutralColor & 0xff;

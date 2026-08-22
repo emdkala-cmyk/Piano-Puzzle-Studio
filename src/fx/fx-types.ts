@@ -86,10 +86,10 @@ export interface FxDebugStats {
 }
 
 export const MAX_ACTIVE_PARTICLES = 1200;
-export const MAX_ACTIVE_SMOKE = 180;
+export const MAX_ACTIVE_SMOKE = 384;
 export const NATURAL_SMOKE_LAYER_COUNT = 3;
-export const MAX_SMOKE_SPAWNS_PER_FRAME = 12;
-export const MAX_PARTICLE_SPAWNS_PER_FRAME = 24;
+export const MAX_SMOKE_SPAWNS_PER_FRAME = 16;
+export const MAX_PARTICLE_SPAWNS_PER_FRAME = 20;
 
 export const DEFAULT_VISUAL_FX_CONFIG: VisualFxConfig = {
   enabled: true,
@@ -100,17 +100,17 @@ export const DEFAULT_VISUAL_FX_CONFIG: VisualFxConfig = {
   glowIntensity: 0.35,
   glowDurationMs: 420,
   trailEnabled: true,
-  trailLength: 0.3,
-  particleDensity: 0.25,
+  trailLength: 0.34,
+  particleDensity: 0.18,
   particleLifetimeMs: 350,
   impactIntensity: 0.35,
   lightingIntensity: 0.15,
   palette: "artwork",
   preset: "cinematic-orbit",
   smokeEnabled: true,
-  smokeDensity: 0.35,
+  smokeDensity: 0.64,
   smokeLayerCount: NATURAL_SMOKE_LAYER_COUNT,
-  smokeEmissionIntervalMs: 44,
+  smokeEmissionIntervalMs: 32,
   smokeFrameBudget: MAX_SMOKE_SPAWNS_PER_FRAME,
   particleFrameBudget: MAX_PARTICLE_SPAWNS_PER_FRAME,
   bassThreshold: 48,

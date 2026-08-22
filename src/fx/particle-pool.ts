@@ -132,6 +132,7 @@ export class ParticlePool {
     slot.visual.rotation = state.rotation;
     slot.visual.tint = state.color;
     slot.visual.alpha = state.alpha;
+    slot.visual.blendMode = textureId === "light-streak" || textureId === "soft-bokeh" ? "screen" : "normal";
     slot.visual.visible = true;
     this.activeParticles += 1;
     return state;
@@ -162,6 +163,7 @@ export class ParticlePool {
       slot.visual.scale.set(state.flipX ? -state.scale : state.scale, state.scale);
       slot.visual.rotation = state.rotation;
       slot.visual.tint = state.color;
+      slot.visual.blendMode = state.textureId === "light-streak" || state.textureId === "soft-bokeh" ? "screen" : "normal";
     }
   }
 

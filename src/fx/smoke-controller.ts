@@ -28,7 +28,7 @@ const LAYER_PROFILES: Record<FxSmokeLayer, SmokeLayerProfile> = {
   core: {
     scaleMultiplier: 0.78,
     lifetimeMultiplier: 0.78,
-    alphaMultiplier: 0.62,
+    alphaMultiplier: 0.72,
     drag: 0.95,
     turbulence: 1.15,
     turbulenceFrequency: 3.8,
@@ -40,7 +40,7 @@ const LAYER_PROFILES: Record<FxSmokeLayer, SmokeLayerProfile> = {
   volume: {
     scaleMultiplier: 1.08,
     lifetimeMultiplier: 1,
-    alphaMultiplier: 0.42,
+    alphaMultiplier: 0.54,
     drag: 0.72,
     turbulence: 0.75,
     turbulenceFrequency: 2.4,
@@ -52,7 +52,7 @@ const LAYER_PROFILES: Record<FxSmokeLayer, SmokeLayerProfile> = {
   residue: {
     scaleMultiplier: 1.36,
     lifetimeMultiplier: 1.2,
-    alphaMultiplier: 0.26,
+    alphaMultiplier: 0.34,
     drag: 1.15,
     turbulence: 0.52,
     turbulenceFrequency: 1.8,
@@ -99,6 +99,7 @@ interface SmokeState {
   fadeOutStart: number;
   flipX: boolean;
   textureId: FxTextureId;
+  textureExtent: number;
 }
 
 interface SmokeSlot {
@@ -164,7 +165,8 @@ export class SmokeController {
           fadeInEnd: 0.12,
           fadeOutStart: 0.55,
           flipX: false,
-          textureId: "smoke-cloud-01"
+          textureId: "smoke-cloud-01",
+          textureExtent: 128
         },
         visual
       });
@@ -227,9 +229,7 @@ export class SmokeController {
     state.age = 0;
     state.lifetime = Math.max(120, lifetime * profile.lifetimeMultiplier * behaviorLifetime * this.random.range(0.86, 1.18));
     state.radius = Math.max(2, radius);
-    state.baseScale = Math.max(0.01, state.radius / 64 * profile.scaleMultiplier * behaviorScale * behaviorMultiplier * this.random.range(0.86, 1.18));
-    state.scale = state.baseScale;
-    state.baseAlpha = clamp(alpha * profile.alphaMultiplier * behaviorMultiplier * this.random.range(0.82, 1.16));
+    state.baseAlpha = clamp(alpha * profile.alphaMultiplier * behaviorMultiplier * this.random.range(0.9, 1.12));
     state.alpha = state.baseAlpha;
     state.color = color;
     state.seed = this.random.range(0, Math.PI * 2);
@@ -249,6 +249,17 @@ export class SmokeController {
     state.textureId = this.pickTexture(layer);
 
     slot.visual.texture = this.texturePipeline?.getTexture(state.textureId) ?? Texture.WHITE;
+    state.textureExtent = Math.max(1, slot.visual.texture.width, slot.visual.texture.height);
+    state.baseScale = Math.max(
+      0.01,
+      state.radius * 2 / state.textureExtent * profile.scaleMultiplier * behaviorScale * behaviorMultiplier * this.random.range(0.86, 1.18)
+    );
+    state.scale = state.baseScale;
+    if (state.textureId === "smoke-wisp-01") {
+      state.rotation = Math.atan2(velocity.y, velocity.x) + Math.PI * 0.5 + this.random.signed(0.42);
+    } else if (state.textureId === "smoke-cloud-01") {
+      state.rotation = this.random.range(0, Math.PI * 2);
+    }
     slot.visual.position.set(state.x, state.y);
     slot.visual.rotation = state.rotation;
     slot.visual.scale.set(state.flipX ? -state.scale : state.scale, state.scale);
@@ -289,10 +300,10 @@ export class SmokeController {
       const fadeIn = smoothstep(0, state.fadeInEnd, progress);
       const fadeOut = 1 - smoothstep(state.fadeOutStart, 1, progress);
       const alphaCurve = Math.pow(Math.max(0, fadeIn * fadeOut), 0.68);
-      const growth = 0.74 + progress * 1.48;
-      const breathing = 1 + Math.sin(state.phase + progress * 5.2) * 0.08 + Math.sin(state.flowPhase + progress * 2.6) * 0.035;
+      const growth = 0.68 + progress * 1.62;
+      const breathing = 1 + Math.sin(state.phase + progress * 5.2) * 0.1 + Math.sin(state.flowPhase + progress * 2.6) * 0.05;
       state.scale = state.baseScale * growth * breathing * (0.94 + state.depth * 0.06);
-      state.alpha = state.baseAlpha * alphaCurve * (0.94 + Math.sin(state.flowPhase + progress * 3.1) * 0.06);
+      state.alpha = state.baseAlpha * alphaCurve * (0.92 + Math.sin(state.flowPhase + progress * 3.1) * 0.08);
       state.rotation += state.spin * delta;
 
       slot.visual.position.set(state.x, state.y);
