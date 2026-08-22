@@ -150,32 +150,35 @@ export function App() {
     panel.hidden = true;
     panel.innerHTML = `
       <div class="fx-dom-heading">Visual FX / جلوه‌های بصری</div>
-      <label>FX Preset<select data-fx="preset"><option value="stardust-stream">Stardust Energy Stream</option><option value="cinematic-orbit">Cinematic Orbit</option><option value="smoke-ember">Smoke & Ember</option><option value="golden-dust">Golden Dust</option><option value="neon-ribbon">Neon Ribbon</option><option value="minimal">Minimal</option></select></label>
+      <label>FX Preset<select data-fx="preset"><option value="stardust-stream">Stardust Energy Stream</option><option value="cinematic-orbit">Cinematic Orbit</option><option value="smoke-ember">Smoke & Ember</option><option value="golden-dust">Golden Dust</option><option value="neon-ribbon">Neon Ribbon</option><option value="pink-nebula">Pink Nebula 🌸</option><option value="sparkle-burst">Sparkle Burst ✨</option><option value="firework-streaks">Firework Streaks 🎆</option><option value="purple-vortex">Purple Vortex 🌀</option><option value="minimal">Minimal</option></select></label>
       <label class="toggle-row"><span>Enable Visual FX</span><input data-fx="enabled" type="checkbox"></label>
       <label class="toggle-row"><span>Keyboard Glow</span><input data-fx="glowEnabled" type="checkbox"></label>
       <label class="toggle-row"><span>Particle Trails</span><input data-fx="trailEnabled" type="checkbox"></label>
       <label class="toggle-row"><span>Smoke Layer</span><input data-fx="smokeEnabled" type="checkbox"></label>
       <label class="toggle-row"><span>Lock-in Impact</span><input data-fx="lockImpactEnabled" type="checkbox"></label>
       <label class="toggle-row"><span>Artwork Lighting</span><input data-fx="lightingEnabled" type="checkbox"></label>
-      <label class="range-label">Glow Intensity <output data-fx-value="glowIntensity"></output></label>
+      <label class="range-label">Glow Intensity <input data-fx-value="glowIntensity" type="text" class="fx-value-input"></label>
       <input data-fx="glowIntensity" type="range" min="0" max="1" step="0.01">
-      <label class="range-label">Particle Density <output data-fx-value="particleDensity"></output></label>
+      <label class="range-label">Particle Density <input data-fx-value="particleDensity" type="text" class="fx-value-input"></label>
       <input data-fx="particleDensity" type="range" min="0" max="1" step="0.01">
-      <label class="range-label">Smoke Density <output data-fx-value="smokeDensity"></output></label>
+      <label class="range-label">Smoke Density <input data-fx-value="smokeDensity" type="text" class="fx-value-input"></label>
       <input data-fx="smokeDensity" type="range" min="0" max="1" step="0.01">
-      <label class="range-label">Particle Size <output data-fx-value="particleSize"></output></label>
+      <label class="range-label">Particle Size <input data-fx-value="particleSize" type="text" class="fx-value-input"></label>
       <input data-fx="particleSize" type="range" min="0.35" max="2.5" step="0.05">
-      <label class="range-label">Trail Length <output data-fx-value="trailLength"></output></label>
+      <label class="range-label">Trail Length <input data-fx-value="trailLength" type="text" class="fx-value-input"></label>
       <input data-fx="trailLength" type="range" min="0" max="1" step="0.01">
-      <label class="range-label">Path Curvature <output data-fx-value="pathCurvature"></output></label>
+      <label class="range-label">Path Curvature <input data-fx-value="pathCurvature" type="text" class="fx-value-input"></label>
       <input data-fx="pathCurvature" type="range" min="0" max="1" step="0.01">
-      <label class="range-label">Reveal Duration <output data-fx-value="revealDurationMs"></output> ms</label>
+      <label class="range-label">Reveal Duration <input data-fx-value="revealDurationMs" type="text" class="fx-value-input"> ms</label>
       <input data-fx="revealDurationMs" type="range" min="120" max="1400" step="20">
-      <label class="range-label">Impact Intensity <output data-fx-value="impactIntensity"></output></label>
+      <label class="range-label">Impact Intensity <input data-fx-value="impactIntensity" type="text" class="fx-value-input"></label>
       <input data-fx="impactIntensity" type="range" min="0" max="1" step="0.01">
-      <label class="range-label">Lighting Intensity <output data-fx-value="lightingIntensity"></output></label>
+      <label class="range-label">Lighting Intensity <input data-fx-value="lightingIntensity" type="text" class="fx-value-input"></label>
       <input data-fx="lightingIntensity" type="range" min="0" max="1" step="0.01">
-      <label>Color Palette<select data-fx="palette"><option value="artwork">Artwork</option><option value="gold">Gold</option><option value="neon">Neon</option><option value="pitch-gradient">Pitch Gradient</option></select></label>
+      <label>Color Palette<select data-fx="palette"><option value="artwork">Artwork</option><option value="gold">Gold</option><option value="neon">Neon</option><option value="fire">🔥 Fire</option><option value="ice">❄️ Ice</option><option value="rainbow">🌈 Rainbow</option><option value="custom">🎨 Custom</option><option value="pitch-gradient">Pitch Gradient</option></select></label>
+      <label class="range-label">Custom Color <input data-fx="customColor" type="color" value="#ff6600" style="width:40px;height:24px;border:0;background:transparent;cursor:pointer;"></label>
+      <label>Path Style<select data-fx="pathStyle"><option value="sequential">Sequential ➡️</option><option value="random">Random 🎲</option><option value="spiral">Spiral 🌀</option><option value="reverse">Reverse ⬅️</option><option value="scattered">Scattered 💫</option></select></label>
+      <label>Particle Motion<select data-fx="particleMotion"><option value="curved">Curved 🌊</option><option value="spiral">Spiral 🌀</option><option value="linear">Linear ➡️</option><option value="orbital">Orbital ⭕</option><option value="random-wobble">Wobble 🎭</option></select></label>
       <div class="control-row"><button type="button" data-fx-action="reset" class="ghost-button">Reset FX Settings</button><button type="button" data-fx-action="demo" class="ghost-button">Run Demo Scene</button></div>
       <div class="debug-grid"><span>Active particles</span><strong data-fx-stat="activeParticles">0</strong><span>Particle capacity</span><strong data-fx-stat="maxActiveParticles">0</strong><span>Active smoke</span><strong data-fx-stat="activeSmoke">0</strong><span>Smoke capacity</span><strong data-fx-stat="maxActiveSmoke">0</strong><span>Smoke layers</span><strong data-fx-stat="smokeLayerCount">3</strong><span>Emitted particles/frame</span><strong data-fx-stat="emittedParticles">0</strong><span>Emitted smoke/frame</span><strong data-fx-stat="emittedSmoke">0</strong><span>Particle budget/frame</span><strong data-fx-stat="particleFrameBudget">24</strong><span>Smoke budget/frame</span><strong data-fx-stat="smokeFrameBudget">12</strong><span>Estimated FPS</span><strong data-fx-stat="estimatedFps">60</strong><span>Dropped particles</span><strong data-fx-stat="droppedParticles">0</strong><span>Dropped smoke</span><strong data-fx-stat="droppedSmoke">0</strong><span>Dropped: pool capacity</span><strong data-fx-stat="droppedByPoolCapacity">0</strong><span>Dropped: frame budget</span><strong data-fx-stat="droppedByFrameBudget">0</strong><span>Dropped: invalid event</span><strong data-fx-stat="droppedByInvalidEvent">0</strong><span>Dropped: inactive state</span><strong data-fx-stat="droppedByInactiveState">0</strong><span>Last FX event</span><strong data-fx-stat="lastFxEvent">none</strong></div>`;
 
@@ -192,11 +195,10 @@ export function App() {
         if (control instanceof HTMLInputElement && control.type === "checkbox") control.checked = Boolean(value);
         else control.value = String(value);
       });
-      panel.querySelectorAll<HTMLOutputElement>("[data-fx-value]").forEach((output) => {
-        const key = output.dataset.fxValue as keyof VisualFxConfig;
+      panel.querySelectorAll<HTMLInputElement>("[data-fx-value]").forEach((input) => {
+        const key = input.dataset.fxValue as keyof VisualFxConfig;
         const value = fxSettings[key];
-        output.value = typeof value === "number" ? value.toFixed(2) : String(value);
-        output.textContent = output.value;
+        input.value = typeof value === "number" ? value.toFixed(2) : String(value);
       });
       const stats = fxStats ?? fxRef.current?.getStats();
       panel.querySelector('[data-fx-stat="activeParticles"]')!.textContent = String(stats?.activeParticles ?? 0);
@@ -246,6 +248,40 @@ export function App() {
     panel.addEventListener("input", onInput);
     panel.addEventListener("change", onInput);
     panel.addEventListener("click", onPanelClick);
+    panel.addEventListener("wheel", (e) => {
+      const target = e.target as HTMLInputElement;
+      if (target.tagName === "INPUT" && target.type === "range") {
+        e.preventDefault();
+        const step = target.step ? parseFloat(target.step) : (parseFloat(target.max) - parseFloat(target.min)) / 100;
+        const delta = e.deltaY < 0 ? step : -step;
+        const newVal = Math.min(parseFloat(target.max), Math.max(parseFloat(target.min), parseFloat(target.value) + delta));
+        target.value = String(newVal);
+        target.dispatchEvent(new Event("input", { bubbles: true }));
+        target.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+    }, { passive: false });
+    // Text input sync: when user types a value in the fx-value-input, sync to the slider
+    panel.addEventListener("keydown", (e) => {
+      const target = e.target as HTMLInputElement;
+      if (target.classList.contains("fx-value-input") && (e.key === "Enter" || e.key === "Tab")) {
+        const key = target.dataset.fxValue as keyof VisualFxConfig | undefined;
+        if (!key) return;
+        const numVal = parseFloat(target.value);
+        if (!isNaN(numVal)) {
+          // Find the corresponding slider
+          const slider = panel.querySelector(`input[type=range][data-fx="${key}"]`) as HTMLInputElement | null;
+          if (slider) {
+            const min = parseFloat(slider.min);
+            const max = parseFloat(slider.max);
+            const clamped = Math.min(max, Math.max(min, numVal));
+            slider.value = String(clamped);
+            slider.dispatchEvent(new Event("input", { bubbles: true }));
+            slider.dispatchEvent(new Event("change", { bubbles: true }));
+          }
+        }
+        target.blur();
+      }
+    });
     tabs.appendChild(fxTab);
     inspector.appendChild(panel);
     syncControls();
@@ -265,10 +301,10 @@ export function App() {
       if (control instanceof HTMLInputElement && control.type === "checkbox") control.checked = Boolean(value);
       else control.value = String(value);
     });
-    panel.querySelectorAll<HTMLOutputElement>("[data-fx-value]").forEach((output) => {
-      const key = output.dataset.fxValue as keyof VisualFxConfig;
+    panel.querySelectorAll<HTMLInputElement>("[data-fx-value]").forEach((input) => {
+      const key = input.dataset.fxValue as keyof VisualFxConfig;
       const value = fxSettings[key];
-      output.textContent = typeof value === "number" ? value.toFixed(2) : String(value);
+      input.value = typeof value === "number" ? value.toFixed(2) : String(value);
     });
     const stats = fxStats ?? fxRef.current?.getStats();
     panel.querySelector('[data-fx-stat="activeParticles"]')!.textContent = String(stats?.activeParticles ?? 0);

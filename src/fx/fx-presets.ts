@@ -18,6 +18,23 @@ export interface FxPresetTuning {
   highShimmerMultiplier: number;
 }
 
+/**
+ * Each preset is designed to produce a visually distinct look.
+ * Reference images inform the character of each:
+ * - stardust-stream: dense golden energy stream (original, kept)
+ * - cinematic-orbit: elegant orbital motion (original, kept)
+ * - smoke-ember: dark fire with embers (original, kept)
+ * - golden-dust: warm golden particles (original, kept)
+ * - neon-ribbon: neon colored ribbons (original, kept)
+ * - vortex-fire: swirling fire vortex (original, kept)
+ * - galaxy-swirl: purple galaxy spiral (original, kept)
+ * - ethereal-white: soft white glow (original, kept)
+ * - minimal: almost nothing (original, kept)
+ * - pink-nebula: DENSE pink/magenta field like image 1
+ * - sparkle-burst: bright white sparkle explosion like image 2/4
+ * - firework-streaks: vertical light streaks rising like image 3
+ * - purple-vortex: deep purple swirling vortex like image 5
+ */
 const PRESET_TUNING: Record<VisualFxPreset, FxPresetTuning> = {
   "stardust-stream": {
     trailMultiplier: 6.5,
@@ -171,6 +188,100 @@ const PRESET_TUNING: Record<VisualFxPreset, FxPresetTuning> = {
     bassSmokeMultiplier: 0.8,
     highSmokeMultiplier: 0.5,
     highShimmerMultiplier: 0.5
+  },
+
+  // ── NEW: Dramatically distinct presets ──────────────────────────────
+
+  /**
+   * Pink Nebula — Dense field of tiny pink/magenta particles
+   * Creates a sea of tiny dots like image 1. Many small particles,
+   * low curve, wide spread, high density at the bottom.
+   */
+  "pink-nebula": {
+    trailMultiplier: 8.0,       // very dense trails
+    smokeMultiplier: 0.6,       // warm haze
+    sparkleMultiplier: 7.0,     // many sparkles everywhere
+    particleScale: 0.5,         // tiny particles
+    curveMultiplier: 0.4,       // gentle drift, not sharp curves
+    swirl: 0.8,                 // mild swirl
+    glowMultiplier: 2.5,        // warm glow halo
+    smokeCoreScale: 0.8,        // wide soft smoke
+    smokeVolumeScale: 1.6,      // fills the screen
+    smokeResidueScale: 2.0,     // lingers long
+    smokeDrag: 0.3,             // slow-moving smoke
+    smokeTurbulence: 0.5,       // smooth haze
+    bassSmokeMultiplier: 1.8,   // heavy bottom haze
+    highSmokeMultiplier: 0.3,
+    highShimmerMultiplier: 5.0  // lots of tiny sparkles
+  },
+
+  /**
+   * Sparkle Burst — Bright white sparkle explosion like fireworks
+   * Creates bright white bursts with lens flare halos like images 2/4.
+   * Fewer but bigger particles with intense glow.
+   */
+  "sparkle-burst": {
+    trailMultiplier: 3.0,
+    smokeMultiplier: 0.15,
+    sparkleMultiplier: 8.0,     // massive sparkle count on impacts
+    particleScale: 1.4,         // bigger particles
+    curveMultiplier: 1.0,
+    swirl: 0.3,                 // particles fly outward, not swirl
+    glowMultiplier: 4.5,        // huge glow halos
+    smokeCoreScale: 0.3,        // minimal smoke body
+    smokeVolumeScale: 0.4,
+    smokeResidueScale: 0.5,
+    smokeDrag: 0.5,
+    smokeTurbulence: 0.4,
+    bassSmokeMultiplier: 0.5,
+    highSmokeMultiplier: 0.2,
+    highShimmerMultiplier: 6.0  // extreme shimmer
+  },
+
+  /**
+   * Firework Streaks — Vertical light streaks rising from piano
+   * Creates long vertical light trails like image 3. Particles are
+   * elongated, rising fast, with minimal lateral spread.
+   */
+  "firework-streaks": {
+    trailMultiplier: 5.0,       // dense trails
+    smokeMultiplier: 0.3,       // thin smoke trail
+    sparkleMultiplier: 2.5,
+    particleScale: 0.7,         // medium particles
+    curveMultiplier: 0.2,       // almost straight up
+    swirl: 0.15,                // no swirl
+    glowMultiplier: 3.5,        // bright glow at impact
+    smokeCoreScale: 0.4,        // thin smoke
+    smokeVolumeScale: 0.5,
+    smokeResidueScale: 0.6,
+    smokeDrag: 0.35,            // smoke rises fast
+    smokeTurbulence: 0.3,
+    bassSmokeMultiplier: 0.4,
+    highSmokeMultiplier: 0.3,
+    highShimmerMultiplier: 3.0
+  },
+
+  /**
+   * Purple Vortex — Deep purple swirling nebula like image 5
+   * Creates curved purple trails with sparkle dots on top.
+   * High swirl, moderate density, large glow halos.
+   */
+  "purple-vortex": {
+    trailMultiplier: 5.5,
+    smokeMultiplier: 1.2,       // thick atmospheric smoke
+    sparkleMultiplier: 4.0,
+    particleScale: 0.85,
+    curveMultiplier: 3.0,       // very curved paths
+    swirl: 5.0,                 // extreme swirl for vortex effect
+    glowMultiplier: 2.8,        // large purple glow halos
+    smokeCoreScale: 1.2,        // thick smoke cores
+    smokeVolumeScale: 1.5,      // fills atmosphere
+    smokeResidueScale: 1.8,     // lingers
+    smokeDrag: 0.45,            // slow smoke
+    smokeTurbulence: 2.5,       // turbulent smoke for vortex feel
+    bassSmokeMultiplier: 1.6,
+    highSmokeMultiplier: 0.4,
+    highShimmerMultiplier: 3.5
   }
 };
 

@@ -1,8 +1,10 @@
 import type { Point } from "../geometry/models";
 import type { PieceAnimationFrame } from "../animation/models";
 
-export type VisualFxPalette = "artwork" | "gold" | "neon" | "pitch-gradient";
-export type VisualFxPreset = "stardust-stream" | "cinematic-orbit" | "smoke-ember" | "golden-dust" | "neon-ribbon" | "vortex-fire" | "galaxy-swirl" | "ethereal-white" | "minimal";
+export type VisualFxPalette = "artwork" | "gold" | "neon" | "pitch-gradient" | "fire" | "ice" | "rainbow" | "custom";
+export type VisualFxPreset = "stardust-stream" | "cinematic-orbit" | "smoke-ember" | "golden-dust" | "neon-ribbon" | "vortex-fire" | "galaxy-swirl" | "ethereal-white" | "minimal" | "pink-nebula" | "sparkle-burst" | "firework-streaks" | "purple-vortex";
+export type FxPathStyle = "sequential" | "random" | "spiral" | "reverse" | "scattered";
+export type FxParticleMotion = "curved" | "spiral" | "linear" | "orbital" | "random-wobble";
 export type FxSmokeLayer = "core" | "volume" | "residue";
 export type FxSmokeBehavior = "neutral" | "bass" | "high";
 
@@ -33,6 +35,9 @@ export interface VisualFxConfig {
   particleSize: number;
   pathCurvature: number;
   revealDurationMs: number;
+  pathStyle: FxPathStyle;
+  particleMotion: FxParticleMotion;
+  customColor: string;
 }
 
 export interface FxNoteEvent {
@@ -117,7 +122,10 @@ export const DEFAULT_VISUAL_FX_CONFIG: VisualFxConfig = {
   highThreshold: 84,
   particleSize: 0.9,
   pathCurvature: 0.58,
-  revealDurationMs: 620
+  revealDurationMs: 620,
+  pathStyle: "sequential" as FxPathStyle,
+  particleMotion: "curved" as FxParticleMotion,
+  customColor: "#ff6600"
 };
 
 export function clamp(value: number, min = 0, max = 1): number {
@@ -144,7 +152,10 @@ export function normalizeVisualFxConfig(value?: Partial<VisualFxConfig>): Visual
     pathCurvature: clamp(merged.pathCurvature),
     glowDurationMs: Math.max(40, Number.isFinite(merged.glowDurationMs) ? merged.glowDurationMs : DEFAULT_VISUAL_FX_CONFIG.glowDurationMs),
     particleLifetimeMs: Math.max(40, Number.isFinite(merged.particleLifetimeMs) ? merged.particleLifetimeMs : DEFAULT_VISUAL_FX_CONFIG.particleLifetimeMs),
-    revealDurationMs: Math.max(120, Number.isFinite(merged.revealDurationMs) ? merged.revealDurationMs : DEFAULT_VISUAL_FX_CONFIG.revealDurationMs)
+    revealDurationMs: Math.max(120, Number.isFinite(merged.revealDurationMs) ? merged.revealDurationMs : DEFAULT_VISUAL_FX_CONFIG.revealDurationMs),
+    pathStyle: ["sequential", "random", "spiral", "reverse", "scattered"].includes(merged.pathStyle as string) ? merged.pathStyle as FxPathStyle : "sequential",
+    particleMotion: ["curved", "spiral", "linear", "orbital", "random-wobble"].includes(merged.particleMotion as string) ? merged.particleMotion as FxParticleMotion : "curved",
+    customColor: typeof merged.customColor === "string" ? merged.customColor : "#ff6600"
   };
 }
 

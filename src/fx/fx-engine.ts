@@ -145,7 +145,7 @@ export class VisualFxEngine {
     const tuning = getFxPresetTuning(this.config.preset);
     const intensity = this.config.glowIntensity * tuning.glowMultiplier * (0.35 + Math.max(0, Math.min(1, event.normalizedVelocity)) * 0.65);
     const behavior = this.behaviorForMidi(event.midiNote);
-    const sourceColor = colorForPitch(this.config.palette, event.midiNote);
+    const sourceColor = this.getColorForPitch(event.midiNote);
     const color = this.isStardustPreset() ? this.stardustColorFor(behavior, sourceColor, event.midiNote) : sourceColor;
     if (this.config.glowEnabled) this.glowController.add(event.position, color, intensity, this.config.glowDurationMs + Math.min(700, event.durationMs * 0.15), event.midiNote < 48 ? 34 : 25);
     if (this.isStardustPreset() && this.config.particlesEnabled) {
@@ -178,7 +178,7 @@ export class VisualFxEngine {
     if (!this.acceptPieceLaunchEvent(event)) return;
     const tuning = getFxPresetTuning(this.config.preset);
     const behavior = this.behaviorForMidi(event.midiNote);
-    const sourceColor = colorForPitch(this.config.palette, event.midiNote);
+    const sourceColor = this.getColorForPitch(event.midiNote);
     const color = this.isStardustPreset() ? this.stardustColorFor(behavior, sourceColor, event.midiNote) : sourceColor;
     const pathDx = event.targetPosition.x - event.position.x;
     const pathDy = event.targetPosition.y - event.position.y;
@@ -231,7 +231,7 @@ export class VisualFxEngine {
     if (!this.acceptPieceLockEvent(event)) return;
     const tuning = getFxPresetTuning(this.config.preset);
     const behavior = this.behaviorForMidi(event.midiNote);
-    const sourceColor = colorForPitch(this.config.palette, event.midiNote);
+    const sourceColor = this.getColorForPitch(event.midiNote);
     const color = this.isStardustPreset() ? this.stardustColorFor(behavior, sourceColor, event.midiNote) : sourceColor;
     if (this.isStardustPreset() && this.config.particlesEnabled) {
       this.emitStardustLockBurst(event.position, color, event.intensity, behavior);
@@ -417,31 +417,26 @@ export class VisualFxEngine {
   }
 
   private spawnDemoWave(): void {
-    // Pieces spawn from keyboard and move UP to form a shape
-    // Target positions form a pattern (like a musical note symbol)
+    const pathStyle = this.config.pathStyle;
     const waveIndex = Math.floor(this.random.nextFloat() * 4);
     const waves: Array<Array<{ midi: number; tx: number; ty: number }>> = [
-      // Wave 1: Scatter upward
       [
         { midi: 48, tx: 180, ty: 200 }, { midi: 52, tx: 320, ty: 350 },
         { midi: 55, tx: 500, ty: 150 }, { midi: 60, tx: 680, ty: 400 },
         { midi: 64, tx: 850, ty: 250 }, { midi: 67, tx: 400, ty: 500 },
       ],
-      // Wave 2: Form an arc
       [
         { midi: 50, tx: 150, ty: 450 }, { midi: 53, tx: 280, ty: 300 },
         { midi: 57, tx: 420, ty: 180 }, { midi: 60, tx: 560, ty: 120 },
         { midi: 64, tx: 700, ty: 180 }, { midi: 67, tx: 840, ty: 300 },
         { midi: 72, tx: 940, ty: 450 },
       ],
-      // Wave 3: Scatter wide
       [
         { midi: 45, tx: 100, ty: 300 }, { midi: 52, tx: 250, ty: 150 },
         { midi: 57, tx: 400, ty: 400 }, { midi: 62, tx: 550, ty: 200 },
         { midi: 67, tx: 700, ty: 350 }, { midi: 71, tx: 850, ty: 150 },
         { midi: 76, tx: 980, ty: 300 },
       ],
-      // Wave 4: Dense cluster
       [
         { midi: 48, tx: 350, ty: 250 }, { midi: 50, tx: 400, ty: 200 },
         { midi: 52, tx: 450, ty: 280 }, { midi: 55, tx: 500, ty: 180 },
@@ -449,11 +444,36 @@ export class VisualFxEngine {
         { midi: 62, tx: 650, ty: 220 }, { midi: 64, tx: 700, ty: 280 },
       ],
     ];
-    const wave = waves[waveIndex];
+    let wave = waves[waveIndex];
 
-    wave.forEach((item, index) => {
-      const color = colorForPitch(this.config.palette, item.midi);
-      // Spawn position: on the keyboard, at the corresponding key
+    // Apply path style ordering
+    let orderedWave = [...wave];
+    if (pathStyle === "random") {
+      orderedWave = wave.map(item => ({ ...item })).sort(() => this.random.nextFloat() - 0.5);
+    } else if (pathStyle === "reverse") {
+      orderedWave = [...wave].reverse();
+    } else if (pathStyle === "spiral") {
+      // Sort by distance from center — pieces fly outward in a spiral pattern
+      const cx = 540, cy = 400;
+      orderedWave = wave.map(item => ({ ...item })).sort((a, b) => {
+        const da = Math.hypot(a.tx - cx, a.ty - cy);
+        const db = Math.hypot(b.tx - cx, b.ty - cy);
+        return da - db;
+      });
+    } else if (pathStyle === "scattered") {
+      // Random positions scattered across canvas
+      const midis = [48, 50, 52, 55, 57, 60, 62, 64];
+      orderedWave = midis.map(midi => ({
+        midi,
+        tx: this.random.range(100, 950),
+        ty: this.random.range(100, 600)
+      }));
+    }
+
+    orderedWave.forEach((item, index) => {
+      const color = this.config.palette === "custom"
+        ? parseInt(this.config.customColor.replace("#", ""), 16)
+        : colorForPitch(this.config.palette, item.midi);
       const kbX = 80 + (item.midi - 36) * 8.5;
       const from = { x: kbX + this.random.signed(8), y: 1710 + this.random.range(-10, 10) };
       const target = { x: item.tx + this.random.signed(20), y: item.ty + this.random.signed(15) };
@@ -466,26 +486,32 @@ export class VisualFxEngine {
         x: (from.x + target.x) / 2 - (dy / distance) * bend * side,
         y: (from.y + target.y) / 2 + (dx / distance) * bend * side
       };
-
-      // Create the note graphic (puzzle piece)
       const graphic = this.createDemoNoteGraphic(color, item.midi);
       graphic.position.set(from.x, from.y);
       this.demoLayer.addChild(graphic);
-
-      // Ghost target indicator (faint outline at destination)
       const targetGhost = new Graphics();
       targetGhost.roundRect(-14, -20, 28, 40, 5)
         .stroke({ color, width: 1.5, alpha: 0.2 });
       targetGhost.position.set(target.x, target.y);
       this.demoLayer.addChild(targetGhost);
-
+      // Stagger timing based on path style
+      let startMs: number;
+      if (pathStyle === "random") {
+        startMs = index * 180 + this.random.range(0, 300);
+      } else if (pathStyle === "spiral") {
+        startMs = index * 250 + this.random.range(0, 100);
+      } else if (pathStyle === "scattered") {
+        startMs = this.random.range(0, 1200);
+      } else {
+        startMs = index * 220 + this.random.range(0, 80);
+      }
       this.demoPieces.push({
         id: `demo-${item.midi}-${index}-${waveIndex}`,
         midiNote: item.midi,
         from,
         target,
         color,
-        startMs: index * 220 + this.random.range(0, 80),
+        startMs,
         durationMs: 1400 + this.random.range(0, 500),
         launched: false,
         locked: false,
@@ -673,7 +699,7 @@ export class VisualFxEngine {
       }
       const progress = Math.min(1, Math.max(0, (this.demoTimeMs - piece.startMs) / piece.durationMs));
       const eased = 1 - Math.pow(1 - progress, 3);
-      const position = this.quadraticBezier(piece.from, piece.control, piece.target, eased);
+      const position = this.computeMotionPosition(piece, eased, progress);
       piece.graphic.position.set(position.x, position.y);
       piece.graphic.rotation = Math.sin(progress * Math.PI * 2.5 + piece.midiNote * 0.3) * 0.06;
 
@@ -726,7 +752,8 @@ export class VisualFxEngine {
         }
         // Burst particles — gated by particlesEnabled + particleDensity
         if (this.config.particlesEnabled && this.config.particleDensity > 0.02) {
-          const burstCount = Math.round((allLocked ? 140 : 70) * this.config.particleDensity);
+          const bd = this.config.particleDensity;
+          const burstCount = Math.round((allLocked ? 140 : 70) * bd * bd * bd);
           for (let i = 0; i < burstCount; i++) {
             const angle = (Math.PI * 2 * i) / burstCount + this.random.signed(0.15);
             const speed = this.random.range(14, allLocked ? 95 : 62);
@@ -923,7 +950,8 @@ export class VisualFxEngine {
     const dy = target.y - position.y;
     const distance = Math.hypot(dx, dy) || 1;
     const direction = invert ? -1 : 1;
-    const count = Math.round(this.config.particleDensity * 16 * (0.35 + this.config.trailLength) * tuning.trailMultiplier);
+    const d2 = this.config.particleDensity;
+    const count = Math.round(d2 * d2 * d2 * 30 * (0.35 + this.config.trailLength) * tuning.trailMultiplier);
     for (let i = 0; i < count; i += 1) {
       const spread = this.random.signed(14 + this.config.pathCurvature * 28);
       const normalX = -dy / distance;
@@ -947,7 +975,8 @@ export class VisualFxEngine {
   private emitSparkles(position: { x: number; y: number }, color: number, intensity: number): void {
     if (this.config.particleDensity <= 0.02) return;
     const tuning = getFxPresetTuning(this.config.preset);
-    const count = Math.round(this.config.particleDensity * 12 * tuning.sparkleMultiplier);
+    const sd = this.config.particleDensity;
+    const count = Math.round(sd * sd * sd * 22 * tuning.sparkleMultiplier);
     for (let i = 0; i < count; i += 1) {
       const angle = (Math.PI * 2 * i) / count;
       this.tryAcquireParticle(
@@ -982,17 +1011,16 @@ export class VisualFxEngine {
     const normalY = dx / distance;
     const direction = invert ? -1 : 1;
     const behavior = hasTrail ? this.behaviorForMidi(target.midiNote) : "neutral";
+    const d = this.config.particleDensity;
+    const d3 = d * d * d;
     const count = isLocalTrail
-      ? Math.round(this.config.particleDensity * 20)
-      : Math.max(
-        50,
-        Math.round(
+      ? Math.round(d3 * 400)
+      : Math.round(
           (behavior === "bass" ? 58 : behavior === "high" ? 52 : 55)
-          * (0.8 + this.config.particleDensity * 0.55)
+          * d3
           * tuning.trailMultiplier
           * 0.65
-        )
-      );
+        );
     const control = hasTrail
       ? target.control
       : {
@@ -1080,7 +1108,8 @@ export class VisualFxEngine {
         0.65 + intensity * 0.3
       );
     }
-    const count = behavior === "bass" ? 72 : behavior === "high" ? 65 : 68;
+    const d3n = this.config.particleDensity;
+    const count = Math.round((behavior === "bass" ? 72 : behavior === "high" ? 65 : 68) * d3n * d3n * d3n);
     const spread = behavior === "bass" ? 12 : behavior === "high" ? 7 : 10;
     const speed = behavior === "bass" ? 28 : behavior === "high" ? 48 : 36;
 
@@ -1134,7 +1163,8 @@ export class VisualFxEngine {
   ): void {
     if (this.config.particleDensity <= 0.02) return;
     const tuning = getFxPresetTuning(this.config.preset);
-    const count = behavior === "high" ? 58 : behavior === "bass" ? 54 : 56;
+    const d3l = this.config.particleDensity;
+    const count = Math.round((behavior === "high" ? 58 : behavior === "bass" ? 54 : 56) * d3l * d3l * d3l);
     const speed = behavior === "bass" ? 24 : behavior === "high" ? 38 : 30;
     for (let index = 0; index < (behavior === "high" ? 2 : 3); index += 1) {
       this.tryAcquireParticle(
@@ -1575,6 +1605,13 @@ export class VisualFxEngine {
     return Math.max(0.08, Math.min(2.6, tuning.smokeMultiplier * behaviorMultiplier * densityMultiplier));
   }
 
+  private getColorForPitch(midiNote: number): number {
+    if (this.config.palette === "custom") {
+      return parseInt(this.config.customColor.replace("#", ""), 16);
+    }
+    return colorForPitch(this.config.palette, midiNote);
+  }
+
   private smokeColorFor(behavior: FxSmokeBehavior, sourceColor: number): number {
     const neutralColor = behavior === "bass" ? 0xd4ad70 : behavior === "high" ? 0xe9dfbc : 0xc9cecc;
     const sourceWeight = this.config.palette === "neon" ? 0.14 : this.config.palette === "pitch-gradient" ? 0.08 : this.config.palette === "gold" ? 0.04 : 0.06;
@@ -1592,7 +1629,35 @@ export class VisualFxEngine {
 
   private stardustColorFor(behavior: FxSmokeBehavior, sourceColor: number, midiNote: number): number {
     let baseColor: number;
-    if (this.isVortexPreset()) {
+    if (this.config.preset === "pink-nebula") {
+      // Dense pink/magenta field
+      baseColor = behavior === "bass"
+        ? 0xff0066
+        : behavior === "high"
+          ? (midiNote % 3 === 0 ? 0xff1493 : 0xff69b4)
+          : (midiNote % 2 === 0 ? 0xcc0055 : 0xff3399);
+    } else if (this.config.preset === "purple-vortex") {
+      // Deep purple swirl
+      baseColor = behavior === "bass"
+        ? 0x6a00cc
+        : behavior === "high"
+          ? (midiNote % 3 === 0 ? 0x9b30ff : 0xb040ff)
+          : (midiNote % 2 === 0 ? 0x8a2be2 : 0x7b00cc);
+    } else if (this.config.preset === "sparkle-burst") {
+      // Bright white sparkles
+      baseColor = behavior === "bass"
+        ? 0xf0f0ff
+        : behavior === "high"
+          ? (midiNote % 3 === 0 ? 0xffffff : 0xf8f8ff)
+          : (midiNote % 2 === 0 ? 0xe8e8ff : 0xf0f0ff);
+    } else if (this.config.preset === "firework-streaks") {
+      // Cool white streaks
+      baseColor = behavior === "bass"
+        ? 0xe0e8ff
+        : behavior === "high"
+          ? (midiNote % 3 === 0 ? 0xffffff : 0xd8e0ff)
+          : (midiNote % 2 === 0 ? 0xd0d8ff : 0xe8f0ff);
+    } else if (this.isVortexPreset()) {
       baseColor = behavior === "bass"
         ? 0xff4500
         : behavior === "high"
@@ -1641,19 +1706,21 @@ export class VisualFxEngine {
   }
 
   private isStardustPreset(): boolean {
-    return this.config.preset === "stardust-stream" || this.config.preset === "vortex-fire" || this.config.preset === "galaxy-swirl" || this.config.preset === "ethereal-white";
+    return this.config.preset === "stardust-stream" || this.config.preset === "vortex-fire" || this.config.preset === "galaxy-swirl" || this.config.preset === "ethereal-white"
+      || this.config.preset === "pink-nebula" || this.config.preset === "sparkle-burst"
+      || this.config.preset === "firework-streaks" || this.config.preset === "purple-vortex";
   }
 
   private isVortexPreset(): boolean {
-    return this.config.preset === "vortex-fire";
+    return this.config.preset === "vortex-fire" || this.config.preset === "purple-vortex";
   }
 
   private isGalaxyPreset(): boolean {
-    return this.config.preset === "galaxy-swirl";
+    return this.config.preset === "galaxy-swirl" || this.config.preset === "pink-nebula";
   }
 
   private isEtherealPreset(): boolean {
-    return this.config.preset === "ethereal-white";
+    return this.config.preset === "ethereal-white" || this.config.preset === "sparkle-burst" || this.config.preset === "firework-streaks";
   }
 
   private resetRandomStreams(seed: string): void {
@@ -1714,7 +1781,8 @@ export class VisualFxEngine {
     if (this.vortexSpawnTimer < 5) return;
     this.vortexSpawnTimer = 0;
     const tuning = getFxPresetTuning(this.config.preset);
-    const baseCount = Math.round(14 * this.config.particleDensity * tuning.trailMultiplier * this.vortexIntensity);
+    const vd = this.config.particleDensity;
+    const baseCount = Math.round(14 * vd * vd * vd * tuning.trailMultiplier * this.vortexIntensity);
     for (let i = 0; i < baseCount; i++) {
       const t = this.random.nextFloat();
       const spiralAngle = this.vortexAngle + t * Math.PI * 6 + this.random.signed(0.3);
@@ -1769,7 +1837,8 @@ export class VisualFxEngine {
     if (this.galaxySpawnTimer < 6) return;
     this.galaxySpawnTimer = 0;
     const tuning = getFxPresetTuning(this.config.preset);
-    const baseCount = Math.round(12 * this.config.particleDensity * tuning.trailMultiplier);
+    const gd = this.config.particleDensity;
+    const baseCount = Math.round(12 * gd * gd * gd * tuning.trailMultiplier);
     for (let i = 0; i < baseCount; i++) {
       const t = this.random.nextFloat();
       const armAngle = this.galaxyAngle + t * Math.PI * 4 + (i % 2 === 0 ? 0 : Math.PI * 2 / 3) + this.random.signed(0.4);
@@ -1810,6 +1879,48 @@ export class VisualFxEngine {
         "neutral"
       );
     }
+  }
+
+  private computeMotionPosition(piece: DemoPiece, eased: number, progress: number): { x: number; y: number } {
+    const motion = this.config.particleMotion;
+    const from = piece.from;
+    const target = piece.target;
+    if (motion === "linear") {
+      return {
+        x: from.x + (target.x - from.x) * eased,
+        y: from.y + (target.y - from.y) * eased
+      };
+    }
+    if (motion === "spiral") {
+      const cx = (from.x + target.x) / 2;
+      const cy = (from.y + target.y) / 2;
+      const radius = Math.hypot(target.x - from.x, target.y - from.y) * 0.4;
+      const angle = progress * Math.PI * 3 + piece.midiNote * 0.5;
+      const expand = eased;
+      return {
+        x: cx + Math.cos(angle) * radius * expand + (target.x - cx) * eased,
+        y: cy + Math.sin(angle) * radius * expand + (target.y - cy) * eased
+      };
+    }
+    if (motion === "orbital") {
+      const baseX = from.x + (target.x - from.x) * eased;
+      const baseY = from.y + (target.y - from.y) * eased;
+      const orbitR = 30 + (1 - eased) * 40;
+      const angle = progress * Math.PI * 6 + piece.midiNote * 0.7;
+      return {
+        x: baseX + Math.cos(angle) * orbitR,
+        y: baseY + Math.sin(angle) * orbitR * 0.5
+      };
+    }
+    if (motion === "random-wobble") {
+      const baseX = from.x + (target.x - from.x) * eased;
+      const baseY = from.y + (target.y - from.y) * eased;
+      const wobbleX = Math.sin(progress * 12 + piece.midiNote) * 35 * (1 - eased * 0.7);
+      const wobbleY = Math.cos(progress * 9 + piece.midiNote * 1.3) * 25 * (1 - eased * 0.7);
+      return { x: baseX + wobbleX, y: baseY + wobbleY };
+    }
+    // Default: curved (bezier)
+    return this.quadraticBezier(from, piece.control, target, eased);
   }
 
   private quadraticBezier(from: { x: number; y: number }, control: { x: number; y: number }, target: { x: number; y: number }, t: number): { x: number; y: number } {
