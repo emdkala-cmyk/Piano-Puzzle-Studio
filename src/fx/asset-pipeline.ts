@@ -483,15 +483,19 @@ function paintEmber(context: CanvasRenderingContext2D, width: number, height: nu
     const ny = y / height - 0.5;
     const radius = Math.hypot(nx, ny);
     const angle = Math.atan2(ny, nx);
-    const noise1 = fractalNoise(x / width * 7, y / height * 7, 5);
-    const noise2 = fractalNoise(x / width * 14, y / height * 14, 15);
-    const noise3 = fractalNoise(x / width * 28, y / height * 28, 25);
-    const contour = 0.27 + Math.sin(angle * 3 + noise1 * 2.4) * 0.06 + noise1 * 0.045 + noise2 * 0.02;
-    const edge = Math.max(0, Math.min(1, (contour - radius) * 8.2));
-    const core = Math.pow(edge, 1.6);
-    const flicker = 0.56 + noise1 * 0.24 + noise2 * 0.12 + noise3 * 0.08;
-    const tendrils = Math.max(0, Math.sin(angle * 5 + noise1 * 4) * 0.12 + Math.sin(angle * 8 - noise2 * 3) * 0.06);
-    return Math.max(0, Math.min(1, (core + tendrils * 0.3) * flicker));
+    const n1 = fractalNoise(x / width * 6, y / height * 6, 5);
+    const n2 = fractalNoise(x / width * 12, y / height * 12, 15);
+    const n3 = fractalNoise(x / width * 24, y / height * 24, 25);
+    // Soft radial glow with organic distortion
+    const warpAngle = angle + n1 * 1.8 + n2 * 0.6;
+    const warpRadius = radius * (1 + Math.sin(warpAngle * 3) * 0.12 + n1 * 0.08);
+    const softCore = Math.exp(-warpRadius * warpRadius * 18) * (0.7 + n1 * 0.3);
+    // Organic tendrils
+    const tendril1 = Math.exp(-Math.pow((warpRadius - 0.18 - n2 * 0.06) / 0.04, 2) * 1.2) * (0.3 + n1 * 0.4);
+    const tendril2 = Math.exp(-Math.pow((warpRadius - 0.28 - n3 * 0.04) / 0.05, 2) * 0.8) * (0.15 + n2 * 0.25);
+    // Fine detail noise
+    const detail = n3 * 0.15;
+    return Math.max(0, Math.min(1, softCore + tendril1 * 0.35 + tendril2 * 0.2 + detail));
   }, [255, 221, 126]);
   context.putImageData(image, 0, 0);
 }
@@ -625,15 +629,20 @@ function paintParticleCluster(context: CanvasRenderingContext2D, width: number, 
 function paintDust(context: CanvasRenderingContext2D, width: number, height: number): void {
   const image = context.createImageData(width, height);
   paintAlphaField(image, width, height, (x, y) => {
-    const nx = x / width - 0.48;
-    const ny = y / height - 0.55;
-    const noise = fractalNoise(x / width * 8, y / height * 8, 23);
-    const warpX = (fractalNoise(x / width * 4.4 + 3, y / height * 4.4, 29) - 0.5) * 0.16;
-    const warpY = (fractalNoise(x / width * 4.4 + 8, y / height * 4.4, 33) - 0.5) * 0.12;
-    const dx = (nx + warpX) / (0.3 + noise * 0.05);
-    const dy = (ny + warpY) / (0.22 + noise * 0.04);
-    const asymmetry = 0.6 + 0.4 * Math.max(0, Math.cos(Math.atan2(dy, dx) * 2.2 + noise * 3));
-    return Math.max(0, Math.min(1, Math.exp(-(dx * dx + dy * dy) * 2.5) * asymmetry * (0.42 + noise * 0.58)));
+    const nx = x / width - 0.5;
+    const ny = y / height - 0.5;
+    const n1 = fractalNoise(x / width * 7, y / height * 7, 23);
+    const n2 = fractalNoise(x / width * 14, y / height * 14, 33);
+    // Soft organic shape with warp
+    const warpX = (fractalNoise(x / width * 3.5 + 3, y / height * 3.5, 29) - 0.5) * 0.2;
+    const warpY = (fractalNoise(x / width * 3.5 + 8, y / height * 3.5, 33) - 0.5) * 0.15;
+    const dx = (nx + warpX);
+    const dy = (ny + warpY);
+    const dist = dx * dx + dy * dy;
+    // Multi-layer soft glow
+    const core = Math.exp(-dist * 16) * (0.5 + n1 * 0.3);
+    const halo = Math.exp(-dist * 5) * (0.2 + n2 * 0.15);
+    return Math.max(0, Math.min(1, core + halo));
   }, [241, 236, 216]);
   context.putImageData(image, 0, 0);
 }
@@ -643,11 +652,15 @@ function paintBokeh(context: CanvasRenderingContext2D, width: number, height: nu
   paintAlphaField(image, width, height, (x, y) => {
     const distance = Math.hypot(x - width * 0.5, y - height * 0.5) / (width * 0.5);
     const angle = Math.atan2(y - height * 0.5, x - width * 0.5);
-    const noise = fractalNoise(x / width * 6, y / height * 6, 31);
-    const brokenRing = 0.48 + 0.22 * Math.sin(angle * 5 + noise * 4.2);
-    const ring = Math.exp(-Math.pow(distance - brokenRing, 2) * 28) * (0.16 + noise * 0.26);
-    const core = Math.pow(Math.max(0, 1 - distance * 1.12), 2.4) * (0.28 + noise * 0.18);
-    return Math.min(1, Math.max(0, ring + core));
+    const n1 = fractalNoise(x / width * 5, y / height * 5, 31);
+    const n2 = fractalNoise(x / width * 10, y / height * 10, 41);
+    // Multi-layer soft glow
+    const innerGlow = Math.exp(-distance * distance * 12) * (0.4 + n1 * 0.2);
+    const outerGlow = Math.exp(-distance * distance * 4) * (0.15 + n2 * 0.1);
+    // Soft ring with organic break
+    const ringDist = Math.abs(distance - 0.35 - n1 * 0.08);
+    const ring = Math.exp(-ringDist * ringDist * 40) * (0.12 + n2 * 0.15) * Math.max(0, Math.sin(angle * 3 + n1 * 2) * 0.5 + 0.5);
+    return Math.min(1, Math.max(0, innerGlow + outerGlow + ring));
   }, [255, 244, 192]);
   context.putImageData(image, 0, 0);
 }

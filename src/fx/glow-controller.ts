@@ -21,7 +21,7 @@ interface GlowSlot {
   visual: Sprite;
 }
 
-const MAX_GLOWS = 96;
+const MAX_GLOWS = 128;
 
 /**
  * Sprite-based glow pool. Glow is deliberately kept separate from the
@@ -82,16 +82,16 @@ export class GlowController {
     state.y = position.y;
     state.color = color;
     state.age = 0;
-    state.lifetime = Math.max(40, durationMs);
-    state.alpha = clamp(intensity);
-    state.radius = Math.max(4, radius);
+    state.lifetime = Math.max(60, durationMs * 1.2);
+    state.alpha = clamp(intensity * 0.9);
+    state.radius = Math.max(8, radius * 1.5);
     state.rotation = 0;
-    state.spin = (state.x * 0.002 + state.y * 0.001) % 0.8 - 0.4;
+    state.spin = (state.x * 0.002 + state.y * 0.001) % 0.6 - 0.3;
 
     slot.visual.texture = this.texturePipeline?.getTexture("soft-bokeh") ?? Texture.WHITE;
     slot.visual.position.set(state.x, state.y);
     slot.visual.tint = state.color;
-    slot.visual.alpha = state.alpha * 0.55;
+    slot.visual.alpha = state.alpha * 0.52;
     slot.visual.visible = true;
     this.activeGlows += 1;
   }
@@ -106,9 +106,10 @@ export class GlowController {
         continue;
       }
       const progress = state.age / state.lifetime;
-      const fade = Math.pow(1 - smoothstep(0, 1, progress), 1.08);
-      const breathing = 1 + Math.sin(progress * Math.PI * 2 + state.x * 0.01) * 0.08;
-      const radius = state.radius * (0.72 + progress * 0.5) * breathing;
+      const fade = Math.pow(1 - smoothstep(0, 1, progress), 0.85);
+      const breathing = 1 + Math.sin(progress * Math.PI * 2.5 + state.x * 0.01) * 0.12;
+      const expand = 0.65 + progress * 0.65;
+      const radius = state.radius * expand * breathing;
       const textureExtent = Math.max(1, slot.visual.texture.width, slot.visual.texture.height);
       const scale = radius * 2 / textureExtent;
       state.rotation += state.spin * Math.min(0.05, deltaMs / 1000);

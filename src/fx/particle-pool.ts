@@ -29,6 +29,8 @@ export interface ParticleState {
   fadeOutStart: number;
   flipX: boolean;
   textureId: FxTextureId;
+  colorShift: number;
+  endColor: number;
 }
 
 interface ParticleSlot {
@@ -82,7 +84,9 @@ export class ParticlePool {
           fadeInEnd: 0.08,
           fadeOutStart: 0.58,
           flipX: false,
-          textureId: "dust-mote"
+          textureId: "dust-mote",
+          colorShift: 0.1,
+          endColor: 0xffffff
         }
       });
     }
@@ -127,42 +131,47 @@ export class ParticlePool {
     state.rotation = this.random.range(0, Math.PI * 2);
     state.spin = this.random.signed(textureId === "light-streak" ? 1.4 : 3.8);
     state.phase = this.random.range(0, Math.PI * 2);
-    state.drag = textureId === "light-streak" ? 0.55 : textureId === "soft-bokeh" ? 0.85 : 1.45;
+    state.drag = textureId === "light-streak" ? 0.45 : textureId === "soft-bokeh" ? 0.7 : textureId === "spark-field" ? 1.1 : 1.35;
     state.turbulence = textureId === "micro-streak"
-      ? 8.5
+      ? 7.5 + this.random.signed(2)
       : textureId === "spark-field"
-        ? 6.8
+        ? 5.5 + this.random.signed(2)
         : textureId === "particle-cluster"
-          ? 5.2
+          ? 4.5 + this.random.signed(1.5)
           : textureId === "micro-spark"
-            ? 3.8
-            : 2.2;
+            ? 3.2 + this.random.signed(1)
+            : 2.0 + this.random.signed(0.8);
     state.turbulenceFrequency = textureId === "micro-streak"
-      ? 7.2
+      ? 6.5 + this.random.signed(1.5)
       : textureId === "spark-field"
-        ? 6.2
+        ? 5.5 + this.random.signed(1)
         : textureId === "particle-cluster"
-          ? 5.4
-          : 4.2;
-    state.rise = textureId === "micro-spark" || textureId === "spark-field" || textureId === "particle-cluster" ? -4.5 : -1.2;
+          ? 4.8 + this.random.signed(1)
+          : 3.8 + this.random.signed(0.8);
+    state.rise = textureId === "micro-spark" || textureId === "spark-field" || textureId === "particle-cluster" ? -4.0 + this.random.signed(1.5) : -1.0 + this.random.signed(0.5);
     state.fadeInEnd = textureId === "light-streak"
-      ? 0.04
+      ? 0.03
       : textureId === "soft-bokeh"
-        ? 0.12
+        ? 0.08
         : textureId === "micro-streak"
-          ? 0.025
+          ? 0.02
           : textureId === "micro-spark" || textureId === "spark-field" || textureId === "particle-cluster"
-            ? 0.035
-            : 0.08;
+            ? 0.028
+            : 0.06;
     state.fadeOutStart = textureId === "soft-bokeh"
-      ? 0.48
+      ? 0.42
       : textureId === "micro-streak"
-        ? 0.72
+        ? 0.68
         : textureId === "micro-spark" || textureId === "spark-field" || textureId === "particle-cluster"
-          ? 0.62
-          : 0.58;
+          ? 0.58
+          : 0.52;
     state.flipX = this.random.nextFloat() > 0.5;
     state.textureId = textureId;
+    state.colorShift = this.random.range(0.08, 0.18);
+    const r = (color >> 16) & 0xff;
+    const g = (color >> 8) & 0xff;
+    const b = color & 0xff;
+    state.endColor = (Math.min(255, Math.round(r * 0.7 + 80)) << 16) | (Math.min(255, Math.round(g * 0.6 + 60)) << 8) | Math.min(255, Math.round(b * 0.5 + 40));
     slot.visual.texture = this.texturePipeline?.getTexture(textureId) ?? Texture.WHITE;
     slot.visual.position.set(state.x, state.y);
     slot.visual.scale.set(state.flipX ? -state.scale : state.scale, state.scale);
@@ -194,18 +203,33 @@ export class ParticlePool {
       state.vy *= drag;
       const progress = state.age / state.lifetime;
       const turbulencePhase = state.phase + progress * state.turbulenceFrequency * Math.PI * 2;
-      state.vx += Math.sin(turbulencePhase) * state.turbulence * deltaSeconds;
-      state.vy += Math.cos(turbulencePhase * 0.83 + state.phase * 0.7) * state.turbulence * 0.72 * deltaSeconds + state.rise * deltaSeconds;
+      const orbitalX = Math.sin(turbulencePhase * 0.7 + state.phase * 1.3) * state.turbulence * 0.35;
+      const orbitalY = Math.cos(turbulencePhase * 0.55 + state.phase * 0.9) * state.turbulence * 0.28;
+      state.vx += Math.sin(turbulencePhase) * state.turbulence * deltaSeconds + orbitalX * deltaSeconds;
+      state.vy += Math.cos(turbulencePhase * 0.83 + state.phase * 0.7) * state.turbulence * 0.72 * deltaSeconds + state.rise * deltaSeconds + orbitalY * deltaSeconds;
       const fadeIn = smoothstep(0, state.fadeInEnd, progress);
       const fadeOut = 1 - smoothstep(state.fadeOutStart, 1, progress);
-      state.alpha = state.baseAlpha * Math.pow(Math.max(0, fadeIn * fadeOut), 0.78);
-      state.scale = state.baseScale * (1 + Math.sin(state.phase + progress * Math.PI * 2) * 0.07) * (1 - progress * 0.12);
+      state.alpha = state.baseAlpha * Math.pow(Math.max(0, fadeIn * fadeOut), 0.72);
+      const sizePulse = 1 + Math.sin(progress * Math.PI * 3 + state.phase * 2) * 0.06;
+      state.scale = state.baseScale * sizePulse * (1 - progress * 0.15);
       state.rotation += state.spin * deltaSeconds;
+      // Color shift over lifetime - shift toward warmer/brighter
+      const colorT = Math.min(1, progress * state.colorShift * 5);
+      const sr = (state.color >> 16) & 0xff;
+      const sg = (state.color >> 8) & 0xff;
+      const sb = state.color & 0xff;
+      const er = (state.endColor >> 16) & 0xff;
+      const eg = (state.endColor >> 8) & 0xff;
+      const eb = state.endColor & 0xff;
+      const cr = Math.round(sr + (er - sr) * colorT);
+      const cg = Math.round(sg + (eg - sg) * colorT);
+      const cb = Math.round(sb + (eb - sb) * colorT);
+      const currentColor = (cr << 16) | (cg << 8) | cb;
       slot.visual.position.set(state.x, state.y);
       slot.visual.alpha = state.alpha;
       slot.visual.scale.set(state.flipX ? -state.scale : state.scale, state.scale);
       slot.visual.rotation = state.rotation;
-      slot.visual.tint = state.color;
+      slot.visual.tint = currentColor;
       slot.visual.blendMode = blendModeForParticle(state.textureId);
     }
   }
