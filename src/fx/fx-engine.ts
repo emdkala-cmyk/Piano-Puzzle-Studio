@@ -248,49 +248,157 @@ export class VisualFxEngine {
     this.resetRandomStreams("piano-puzzle-demo");
     this.demoActive = true;
     this.demoTimeMs = 0;
-    this.demoBackdrop = new Graphics()
-      .roundRect(44, 72, 992, 820, 28)
-      .fill({ color: 0x101a39, alpha: 0.72 })
-      .stroke({ color: 0x5f83d8, width: 2, alpha: 0.4 })
-      .roundRect(70, 1050, 940, 720, 28)
-      .fill({ color: 0x0b112a, alpha: 0.55 })
-      .stroke({ color: 0x344d8a, width: 1, alpha: 0.35 });
+
+    // Dark cinematic background
+    this.demoBackdrop = new Graphics();
+    this.demoBackdrop.rect(0, 0, 1080, 1920).fill({ color: 0x050810, alpha: 1 });
     this.demoLayer.addChild(this.demoBackdrop);
-    const notes = [36, 43, 52, 60, 67, 76, 84, 91];
-    const colors = notes.map((note) => colorForPitch(this.config.palette, note));
-    notes.forEach((midiNote, index) => {
-      const from = { x: 120 + index * 120, y: 1570 + (index % 2) * 84 };
-      const target = { x: 142 + index * 120, y: 154 + (index % 4) * 186 };
+
+    // Draw ambient star field
+    this.drawAmbientStars();
+
+    // Draw piano keyboard at the bottom
+    this.drawPianoKeyboard();
+
+    // Spawn first wave of pieces from keyboard upward
+    this.spawnDemoWave();
+    this.lastEvent = "demo-start";
+  }
+
+  private drawPianoKeyboard(): void {
+    const keyboard = new Graphics();
+    const kbY = 1700;
+    const kbHeight = 220;
+    const totalWidth = 1080;
+    const whiteKeyCount = 21;
+    const whiteKeyWidth = totalWidth / whiteKeyCount;
+
+    // Keyboard background glow
+    keyboard.rect(0, kbY - 12, totalWidth, kbHeight + 24)
+      .fill({ color: 0x080c18, alpha: 0.95 });
+
+    // White keys
+    for (let i = 0; i < whiteKeyCount; i++) {
+      const x = i * whiteKeyWidth;
+      keyboard.roundRect(x + 1, kbY, whiteKeyWidth - 2, kbHeight - 6, 4)
+        .fill({ color: 0x181c2a, alpha: 0.95 })
+        .stroke({ color: 0x252a40, width: 1, alpha: 0.7 });
+    }
+
+    // Black keys
+    const blackKeyPattern = [1, 1, 0, 1, 1, 1, 0];
+    const blackKeyWidth = whiteKeyWidth * 0.58;
+    const blackKeyHeight = kbHeight * 0.55;
+    for (let i = 0; i < whiteKeyCount - 1; i++) {
+      if (blackKeyPattern[i % 7] === 1) {
+        const x = (i + 1) * whiteKeyWidth - blackKeyWidth / 2;
+        keyboard.roundRect(x, kbY, blackKeyWidth, blackKeyHeight, 3)
+          .fill({ color: 0x0a0d14, alpha: 0.98 })
+          .stroke({ color: 0x181c2a, width: 1, alpha: 0.5 });
+      }
+    }
+
+    // Glow line above keyboard - animated energy line
+    for (let x = 0; x < totalWidth; x += 1) {
+      const glow = 0.12 + Math.sin(x * 0.025) * 0.06 + Math.sin(x * 0.08) * 0.03;
+      keyboard.rect(x, kbY - 3, 1, 3).fill({ color: 0x4488ff, alpha: glow });
+    }
+
+    this.demoLayer.addChild(keyboard);
+  }
+
+  private drawAmbientStars(): void {
+    const stars = new Graphics();
+    for (let i = 0; i < 100; i++) {
+      const x = this.random.range(10, 1070);
+      const y = this.random.range(10, 1680);
+      const size = this.random.range(0.4, 2.2);
+      const alpha = this.random.range(0.08, 0.35);
+      stars.circle(x, y, size).fill({ color: 0xffffff, alpha });
+    }
+    this.demoLayer.addChild(stars);
+  }
+
+  private spawnDemoWave(): void {
+    // Pieces spawn from keyboard and move UP to form a shape
+    // Target positions form a pattern (like a musical note symbol)
+    const waveIndex = Math.floor(this.random.nextFloat() * 4);
+    const waves: Array<Array<{ midi: number; tx: number; ty: number }>> = [
+      // Wave 1: Scatter upward
+      [
+        { midi: 48, tx: 180, ty: 200 }, { midi: 52, tx: 320, ty: 350 },
+        { midi: 55, tx: 500, ty: 150 }, { midi: 60, tx: 680, ty: 400 },
+        { midi: 64, tx: 850, ty: 250 }, { midi: 67, tx: 400, ty: 500 },
+      ],
+      // Wave 2: Form an arc
+      [
+        { midi: 50, tx: 150, ty: 450 }, { midi: 53, tx: 280, ty: 300 },
+        { midi: 57, tx: 420, ty: 180 }, { midi: 60, tx: 560, ty: 120 },
+        { midi: 64, tx: 700, ty: 180 }, { midi: 67, tx: 840, ty: 300 },
+        { midi: 72, tx: 940, ty: 450 },
+      ],
+      // Wave 3: Scatter wide
+      [
+        { midi: 45, tx: 100, ty: 300 }, { midi: 52, tx: 250, ty: 150 },
+        { midi: 57, tx: 400, ty: 400 }, { midi: 62, tx: 550, ty: 200 },
+        { midi: 67, tx: 700, ty: 350 }, { midi: 71, tx: 850, ty: 150 },
+        { midi: 76, tx: 980, ty: 300 },
+      ],
+      // Wave 4: Dense cluster
+      [
+        { midi: 48, tx: 350, ty: 250 }, { midi: 50, tx: 400, ty: 200 },
+        { midi: 52, tx: 450, ty: 280 }, { midi: 55, tx: 500, ty: 180 },
+        { midi: 57, tx: 550, ty: 240 }, { midi: 60, tx: 600, ty: 160 },
+        { midi: 62, tx: 650, ty: 220 }, { midi: 64, tx: 700, ty: 280 },
+      ],
+    ];
+    const wave = waves[waveIndex];
+
+    wave.forEach((item, index) => {
+      const color = colorForPitch(this.config.palette, item.midi);
+      // Spawn position: on the keyboard, at the corresponding key
+      const kbX = 80 + (item.midi - 36) * 8.5;
+      const from = { x: kbX + this.random.signed(8), y: 1710 + this.random.range(-10, 10) };
+      const target = { x: item.tx + this.random.signed(20), y: item.ty + this.random.signed(15) };
       const dx = target.x - from.x;
       const dy = target.y - from.y;
       const distance = Math.hypot(dx, dy) || 1;
       const side = index % 2 === 0 ? 1 : -1;
-      const bend = (90 + (index % 3) * 42) * (0.35 + this.config.pathCurvature * getFxPresetTuning(this.config.preset).curveMultiplier);
-      const control = { x: (from.x + target.x) / 2 - (dy / distance) * bend * side, y: (from.y + target.y) / 2 + (dx / distance) * bend * side };
-      const targetGraphic = this.createDemoPieceGraphic(colors[index], true);
-      targetGraphic.position.set(target.x, target.y);
-      this.demoLayer.addChild(targetGraphic);
-      const graphic = this.createDemoPieceGraphic(colors[index], false);
+      const bend = (80 + this.random.range(0, 120)) * this.config.pathCurvature * getFxPresetTuning(this.config.preset).curveMultiplier;
+      const control = {
+        x: (from.x + target.x) / 2 - (dy / distance) * bend * side,
+        y: (from.y + target.y) / 2 + (dx / distance) * bend * side
+      };
+
+      // Create the note graphic (puzzle piece)
+      const graphic = this.createDemoNoteGraphic(color, item.midi);
       graphic.position.set(from.x, from.y);
       this.demoLayer.addChild(graphic);
+
+      // Ghost target indicator (faint outline at destination)
+      const targetGhost = new Graphics();
+      targetGhost.roundRect(-14, -20, 28, 40, 5)
+        .stroke({ color, width: 1.5, alpha: 0.2 });
+      targetGhost.position.set(target.x, target.y);
+      this.demoLayer.addChild(targetGhost);
+
       this.demoPieces.push({
-        id: `demo-piece-${index}`,
-        midiNote,
+        id: `demo-${item.midi}-${index}-${waveIndex}`,
+        midiNote: item.midi,
         from,
         target,
-        color: colors[index],
-        startMs: index * 260,
-        durationMs: 900,
+        color,
+        startMs: index * 220 + this.random.range(0, 80),
+        durationMs: 1400 + this.random.range(0, 500),
         launched: false,
         locked: false,
         control,
         lastPosition: { ...from },
         pulseMs: 0,
         graphic,
-        targetGraphic
+        targetGraphic: targetGhost
       });
     });
-    this.lastEvent = "demo-start";
   }
 
   stopDemo(): void {
@@ -451,8 +559,8 @@ export class VisualFxEngine {
         this.onNoteOn({
           id: piece.id,
           midiNote: piece.midiNote,
-          velocity: 72 + piece.midiNote % 50,
-          normalizedVelocity: (72 + piece.midiNote % 50) / 127,
+          velocity: 85 + piece.midiNote % 35,
+          normalizedVelocity: (85 + piece.midiNote % 35) / 127,
           position: piece.from,
           durationMs: piece.durationMs,
           playbackTimeMs: this.demoTimeMs
@@ -462,38 +570,32 @@ export class VisualFxEngine {
           position: piece.from,
           targetPosition: piece.target,
           midiNote: piece.midiNote,
-          intensity: 0.65 + (piece.midiNote % 30) / 100,
+          intensity: 0.8 + (piece.midiNote % 25) / 100,
           playbackTimeMs: this.demoTimeMs
         });
       }
       const progress = Math.min(1, Math.max(0, (this.demoTimeMs - piece.startMs) / piece.durationMs));
       const eased = 1 - Math.pow(1 - progress, 3);
       const position = this.quadraticBezier(piece.from, piece.control, piece.target, eased);
-      const x = position.x;
-      const y = position.y;
-      piece.graphic.position.set(x, y);
-      piece.graphic.rotation = Math.atan2(y - piece.lastPosition.y, x - piece.lastPosition.x) * 0.12 + Math.sin(progress * Math.PI * 2) * 0.04;
+      piece.graphic.position.set(position.x, position.y);
+      piece.graphic.rotation = Math.sin(progress * Math.PI * 2.5 + piece.midiNote * 0.3) * 0.06;
+
+      // Trail particles along the path
       const trail = this.trails.get(piece.id);
       if (trail && progress < 1) {
-        const distance = Math.hypot(position.x - trail.x, position.y - trail.y);
-        if (distance > 2) {
+        const dist = Math.hypot(position.x - trail.x, position.y - trail.y);
+        if (dist > 1.2) {
           if (this.config.trailEnabled && this.config.particlesEnabled) {
             this.emitTrail(position, trail, trail.color, trail.intensity);
           }
-          if (this.demoTimeMs - trail.lastSmokeEmitMs >= this.config.smokeEmissionIntervalMs) {
+          if (this.demoTimeMs - trail.lastSmokeEmitMs >= this.config.smokeEmissionIntervalMs * 0.6) {
             const behavior = this.behaviorForMidi(trail.midiNote);
             if (this.config.smokeEnabled && getFxPresetTuning(this.config.preset).smokeMultiplier > 0) {
               this.emitSmokeAlongPath(
-                { x: trail.x, y: trail.y },
-                position,
+                { x: trail.x, y: trail.y }, position,
                 this.smokeColorFor(behavior, trail.color),
-                trail.intensity,
-                behavior,
-                trail.emissionIndex
+                trail.intensity, behavior, trail.emissionIndex
               );
-            }
-            if (!this.isStardustPreset() && this.config.particlesEnabled && behavior === "high" && trail.emissionIndex % 2 === 0) {
-              this.emitHighShimmer(position, { x: position.x - trail.x, y: position.y - trail.y }, trail.color, trail.intensity, trail.emissionIndex);
             }
             trail.lastSmokeEmitMs = this.demoTimeMs;
             trail.emissionIndex += 1;
@@ -503,18 +605,52 @@ export class VisualFxEngine {
           trail.y = position.y;
         }
       }
-      piece.pulseMs += 16;
-      if (piece.pulseMs >= 110 && progress < 0.92) {
+
+      // Glow pulse while moving
+      piece.pulseMs += deltaMs;
+      if (piece.pulseMs >= 70 && progress < 0.95) {
         piece.pulseMs = 0;
-        if (this.config.glowEnabled) this.glowController.add(position, piece.color, this.config.glowIntensity * 0.24, this.config.revealDurationMs * 0.3, 10 + progress * 18);
+        if (this.config.glowEnabled) {
+          this.glowController.add(position, piece.color, this.config.glowIntensity * 0.4, this.config.revealDurationMs * 0.45, 16 + progress * 24);
+        }
       }
       piece.lastPosition = position;
+
+      // Lock effect when reaching target position
       if (progress >= 1 && !piece.locked) {
         piece.locked = true;
-        this.onPieceLock({ pieceId: piece.id, position: piece.target, midiNote: piece.midiNote, intensity: 0.9, playbackTimeMs: this.demoTimeMs });
+        this.onPieceLock({ pieceId: piece.id, position: piece.target, midiNote: piece.midiNote, intensity: 1.0, playbackTimeMs: this.demoTimeMs });
+        // Burst particles at target
+        if (this.config.particlesEnabled) {
+          for (let i = 0; i < 16; i++) {
+            const angle = (Math.PI * 2 * i) / 16 + this.random.signed(0.15);
+            const speed = this.random.range(12, 30);
+            this.tryAcquireParticle(
+              { x: piece.target.x + this.random.signed(2), y: piece.target.y + this.random.signed(2) },
+              { x: Math.cos(angle) * speed, y: Math.sin(angle) * speed },
+              this.random.range(250, 500),
+              this.random.nextFloat() > 0.6 ? 0xffffff : piece.color,
+              this.config.particleSize * this.random.range(0.7, 1.3),
+              this.random.nextFloat() > 0.5 ? "spark-cross" : "ember-small",
+              0.65
+            );
+          }
+        }
+        if (this.config.glowEnabled) {
+          this.glowController.add(piece.target, piece.color, 0.85, 450, 28);
+        }
       }
     }
-    if (this.demoTimeMs > 4200) this.startDemo();
+    // Respawn after all pieces locked
+    if (this.demoPieces.length > 0 && this.demoPieces.every((p) => p.locked) && this.demoTimeMs > 600) {
+      this.demoTimeMs = 0;
+      this.demoPieces = [];
+      this.demoLayer.removeChildren().forEach((child) => child.destroy());
+      this.demoBackdrop = undefined;
+      this.drawAmbientStars();
+      this.drawPianoKeyboard();
+      this.spawnDemoWave();
+    }
   }
 
   private clearDemo(): void {
@@ -525,23 +661,29 @@ export class VisualFxEngine {
     this.demoBackdrop = undefined;
   }
 
-  private createDemoPieceGraphic(color: number, target: boolean): Graphics {
+  private createDemoNoteGraphic(color: number, midiNote: number): Graphics {
     const graphic = new Graphics();
-    const fillAlpha = target ? 0.11 : 0.88;
-    const strokeAlpha = target ? 0.5 : 0.8;
-    graphic.poly([
-      { x: -48, y: -34 }, { x: -18, y: -34 }, { x: -8, y: -48 }, { x: 8, y: -34 },
-      { x: 48, y: -34 }, { x: 48, y: 34 }, { x: 12, y: 34 }, { x: 0, y: 48 },
-      { x: -12, y: 34 }, { x: -48, y: 34 }
-    ])
-      .fill({ color, alpha: fillAlpha })
-      .stroke({ color: target ? color : 0xffffff, width: target ? 2 : 2.5, alpha: strokeAlpha });
-    if (target) {
-      graphic.circle(0, 0, 57).stroke({ color, width: 1.2, alpha: 0.2 });
-      graphic.circle(0, 0, 68).stroke({ color, width: 1, alpha: 0.1 });
-    } else {
-      graphic.circle(0, 0, 56).stroke({ color, width: 1, alpha: 0.24 });
-    }
+    const isBlack = [1, 3, 6, 8, 10].includes(midiNote % 12);
+    const w = isBlack ? 20 : 28;
+    const h = 40 + (midiNote % 12) * 2;
+
+    // Outer glow halo
+    graphic.roundRect(-w / 2 - 6, -h / 2 - 6, w + 12, h + 12, 8)
+      .fill({ color, alpha: 0.12 });
+
+    // Main body - puzzle piece shape
+    graphic.roundRect(-w / 2, -h / 2, w, h, 5)
+      .fill({ color, alpha: 0.9 })
+      .stroke({ color: 0xffffff, width: 1.8, alpha: 0.55 });
+
+    // Inner glow highlight
+    graphic.roundRect(-w / 2 + 3, -h / 2 + 3, w - 6, h * 0.35, 3)
+      .fill({ color: 0xffffff, alpha: 0.2 });
+
+    // Bright core
+    graphic.rect(-1, -h / 2 + 5, 2, h - 10)
+      .fill({ color: 0xffffff, alpha: 0.35 });
+
     return graphic;
   }
 
