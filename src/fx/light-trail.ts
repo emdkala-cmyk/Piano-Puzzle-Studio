@@ -22,8 +22,8 @@ export class LightTrailController {
   private coreLayer = new Graphics();
   private trails = new Map<string, ActiveTrail>();
   private paused = false;
-  private maxTrailPoints = 80;
-  private lifetimeMs = 1200;
+  private maxTrailPoints = 120;
+  private lifetimeMs = 1400;
 
   constructor() {
     this.layer.addChild(this.glowLayer, this.coreLayer);
@@ -39,7 +39,7 @@ export class LightTrailController {
     this.coreLayer.clear();
   }
 
-  startTrail(id: string, color: number, intensity: number, startPos: { x: number; y: number }, width = 12, glowLayers = 3): void {
+  startTrail(id: string, color: number, intensity: number, startPos: { x: number; y: number }, width = 14, glowLayers = 3): void {
     this.trails.set(id, {
       id,
       color,
@@ -105,20 +105,21 @@ export class LightTrailController {
     const points = trail.points;
     if (points.length < 2) return;
 
-    const { color, intensity, width } = trail;
     const totalLength = this.calculateTrailLength(points);
     if (totalLength < 1) return;
 
+    // Draw glow layers (outer to inner)
     for (let layer = trail.glowLayers; layer >= 0; layer--) {
-      const layerWidth = width * (1 + layer * 0.8);
-      const layerAlpha = intensity * (layer === 0 ? 0.9 : 0.15 / (layer * 0.8));
-      this.drawTrailLayer(trail, layerWidth, layerAlpha, totalLength);
+      const layerWidth = trail.width * (1 + layer * 1.2);
+      const layerAlpha = trail.intensity * (layer === 0 ? 0.85 : 0.12 / (layer * 0.6));
+      this.drawSmoothTrailLayer(trail, layerWidth, layerAlpha, totalLength);
     }
 
-    this.drawCoreLine(trail, totalLength);
+    // Draw bright core
+    this.drawSmoothCoreLine(trail, totalLength);
   }
 
-  private drawTrailLayer(
+  private drawSmoothTrailLayer(
     trail: ActiveTrail,
     baseWidth: number,
     baseAlpha: number,
@@ -126,11 +127,15 @@ export class LightTrailController {
   ): void {
     const points = trail.points;
     const graphics = this.glowLayer;
+
+    // Interpolate smooth curve using Catmull-Rom
+    const curvePoints = this.interpolateCatmullRom(points, 8);
+
     let accumulatedLength = 0;
 
-    for (let i = 1; i < points.length; i++) {
-      const prev = points[i - 1];
-      const curr = points[i];
+    for (let i = 1; i < curvePoints.length; i++) {
+      const prev = curvePoints[i - 1];
+      const curr = curvePoints[i];
 
       const segmentLength = Math.hypot(curr.x - prev.x, curr.y - prev.y);
       if (segmentLength < 0.1) continue;
@@ -164,14 +169,18 @@ export class LightTrailController {
     }
   }
 
-  private drawCoreLine(trail: ActiveTrail, totalLength: number): void {
+  private drawSmoothCoreLine(trail: ActiveTrail, totalLength: number): void {
     const points = trail.points;
     const graphics = this.coreLayer;
+
+    // Interpolate smooth curve
+    const curvePoints = this.interpolateCatmullRom(points, 8);
+
     let accumulatedLength = 0;
 
-    for (let i = 1; i < points.length; i++) {
-      const prev = points[i - 1];
-      const curr = points[i];
+    for (let i = 1; i < curvePoints.length; i++) {
+      const prev = curvePoints[i - 1];
+      const curr = curvePoints[i];
 
       const segmentLength = Math.hypot(curr.x - prev.x, curr.y - prev.y);
       if (segmentLength < 0.1) continue;
@@ -188,14 +197,14 @@ export class LightTrailController {
         continue;
       }
 
-      const coreWidth = Math.max(1, trail.width * 0.25 * this.calculateWidthMultiplier(startT, endT));
+      const coreWidth = Math.max(1.5, trail.width * 0.2 * this.calculateWidthMultiplier(startT, endT));
 
       graphics.moveTo(prev.x, prev.y);
       graphics.lineTo(curr.x, curr.y);
       graphics.stroke({
         color: 0xffffff,
         width: coreWidth,
-        alpha: alpha * 0.95,
+        alpha: alpha * 0.92,
         cap: "round" as any,
         join: "round" as any
       });
@@ -204,19 +213,64 @@ export class LightTrailController {
     }
   }
 
-  private calculateAgeFade(age: number): number {
-    if (age < 100) {
-      return age / 100;
+  /**
+   * Catmull-Rom spline interpolation for smooth curves
+   */
+  private interpolateCatmullRom(points: TrailPoint[], subdivisions: number): TrailPoint[] {
+    if (points.length < 2) return points;
+
+    const result: TrailPoint[] = [];
+
+    for (let i = 0; i < points.length - 1; i++) {
+      const p0 = points[Math.max(0, i - 1)];
+      const p1 = points[i];
+      const p2 = points[Math.min(points.length - 1, i + 1)];
+      const p3 = points[Math.min(points.length - 1, i + 2)];
+
+      for (let t = 0; t < subdivisions; t++) {
+        const frac = t / subdivisions;
+        const age = p1.age + (p2.age - p1.age) * frac;
+
+        result.push({
+          x: this.catmullRom(p0.x, p1.x, p2.x, p3.x, frac),
+          y: this.catmullRom(p0.y, p1.y, p2.y, p3.y, frac),
+          age: age
+        });
+      }
     }
-    const fadeStart = this.lifetimeMs * 0.6;
+
+    // Add the last point
+    result.push(points[points.length - 1]);
+
+    return result;
+  }
+
+  private catmullRom(p0: number, p1: number, p2: number, p3: number, t: number): number {
+    const t2 = t * t;
+    const t3 = t2 * t;
+
+    return 0.5 * (
+      (2 * p1) +
+      (-p0 + p2) * t +
+      (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 +
+      (-p0 + 3 * p1 - 3 * p2 + p3) * t3
+    );
+  }
+
+  private calculateAgeFade(age: number): number {
+    if (age < 80) {
+      return age / 80;
+    }
+    const fadeStart = this.lifetimeMs * 0.55;
     if (age > fadeStart) {
-      return 1 - (age - fadeStart) / (this.lifetimeMs - fadeStart);
+      const fade = 1 - (age - fadeStart) / (this.lifetimeMs - fadeStart);
+      return fade * fade; // Smooth quadratic fade
     }
     return 1;
   }
 
   private calculatePositionFade(startT: number, endT: number): number {
-    const fadeZone = 0.15;
+    const fadeZone = 0.12;
     let fade = 1;
 
     if (startT < fadeZone) {
@@ -233,7 +287,8 @@ export class LightTrailController {
   private calculateWidthMultiplier(startT: number, endT: number): number {
     const midT = (startT + endT) / 2;
     const distFromCenter = Math.abs(midT - 0.5) * 2;
-    return 0.6 + 0.4 * (1 - distFromCenter * distFromCenter);
+    // Smooth bell curve - wider in middle, thinner at ends
+    return 0.5 + 0.5 * Math.exp(-2 * distFromCenter * distFromCenter);
   }
 
   private calculateTrailLength(points: TrailPoint[]): number {
