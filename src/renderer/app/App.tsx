@@ -561,6 +561,14 @@ export function App() {
       previousStates.set(frame.pieceId, frame.state);
     }
     fxRef.current?.update(deltaSeconds, currentTimeMs, frames as FxAnimationFrame[]);
+    // Ensure FX layer is always on top
+    if (fxRef.current && puzzlePixi.current) {
+      const stage = puzzlePixi.current.stage;
+      const fxLayer = fxRef.current.layer;
+      if (fxLayer.parent === stage && stage.children[stage.children.length - 1] !== fxLayer) {
+        stage.addChild(fxLayer);
+      }
+    }
     if (now - lastUiSync.current > 120) { lastUiSync.current = now; setFxStats(fxRef.current?.getStats()); }
     lastAudioTimeMsRef.current = currentTimeMs;
   }
