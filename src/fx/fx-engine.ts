@@ -170,8 +170,7 @@ export class VisualFxEngine {
         textureId === "light-streak" ? 0.58 : 0.68
       );
     }
-if (this.config.lightingIntensity > 0.02) this.lightingController.noteOn(event.midiNote, event.normalizedVelocity);
-this.lightingController.noteOn(event.midiNote, event.normalizedVelocity);
+    // Lighting disabled for performance
     if (this.config.keyboardGlowEnabled) {
       this.keyboardGlow.hitKey(event.position.x, color, this.config.keyboardGlowIntensity * (0.35 + event.normalizedVelocity * 0.65));
     }
@@ -233,7 +232,7 @@ this.lightingController.noteOn(event.midiNote, event.normalizedVelocity);
       this.emitSmokeLaunch(event.position, event.targetPosition, this.smokeColorFor(behavior, color), event.intensity, behavior);
     }
     // Start light trail
-    if (this.config.lightTrailEnabled && !this.isStardustPreset()) {
+    if (this.config.lightTrailEnabled) {
       this.lightTrail.startTrail(event.pieceId, color, event.intensity, event.position, this.config.lightTrailWidth, this.config.lightTrailGlowLayers);
     }
     this.lastEvent = `launch:${event.pieceId}`;
@@ -257,7 +256,7 @@ this.lightingController.noteOn(event.midiNote, event.normalizedVelocity);
     }
     if (this.config.glowEnabled) this.glowController.add(event.position, color, this.config.glowIntensity * tuning.glowMultiplier * event.intensity, this.config.revealDurationMs * 0.8, 22 + event.intensity * 18);
     // End light trail
-    if (this.config.lightTrailEnabled && !this.isStardustPreset()) {
+    if (this.config.lightTrailEnabled) {
       this.lightTrail.endTrail(event.pieceId);
     }
     this.trails.delete(event.pieceId);
@@ -554,8 +553,9 @@ this.lightingController.noteOn(event.midiNote, event.normalizedVelocity);
       this.commitFrameMetrics();
       return;
     }
-    this.lightingController.setPaused(this.paused);
-    this.lightingController.update(deltaSeconds, this.config);
+    // Lighting disabled for performance
+    // this.lightingController.setPaused(this.paused);
+    // this.lightingController.update(deltaSeconds, this.config);
     this.keyboardGlow.setPaused(this.paused);
     this.keyboardGlow.update(deltaSeconds, this.config.keyboardGlowEnabled && this.config.enabled, this.config.keyboardGlowIntensity);
     this.glowController.update(deltaMs);
@@ -595,7 +595,7 @@ this.lightingController.noteOn(event.midiNote, event.normalizedVelocity);
           }
           if (this.config.trailEnabled) this.recordTrail(trail, position);
           // Add point to light trail
-          if (this.config.lightTrailEnabled && !this.isStardustPreset()) {
+          if (this.config.lightTrailEnabled) {
             this.lightTrail.addPoint(frame.pieceId, position.x, position.y);
           }
           trail.x = position.x;
@@ -757,7 +757,7 @@ this.lightingController.noteOn(event.midiNote, event.normalizedVelocity);
           }
           this.recordTrail(trail, position);
           // Add point to light trail in demo mode
-          if (this.config.lightTrailEnabled && !this.isStardustPreset()) {
+          if (this.config.lightTrailEnabled) {
             this.lightTrail.addPoint(piece.id, position.x, position.y);
           }
           trail.x = position.x;

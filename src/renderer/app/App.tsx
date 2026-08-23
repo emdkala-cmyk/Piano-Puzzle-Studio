@@ -174,8 +174,6 @@ export function App() {
       <input data-fx="revealDurationMs" type="range" min="120" max="1400" step="20">
       <label class="range-label">Impact Intensity <input data-fx-value="impactIntensity" type="text" class="fx-value-input"></label>
       <input data-fx="impactIntensity" type="range" min="0" max="1" step="0.01">
-      <label class="range-label">Lighting Intensity <input data-fx-value="lightingIntensity" type="text" class="fx-value-input"></label>
-      <input data-fx="lightingIntensity" type="range" min="0" max="1" step="0.01">
       <label class="toggle-row"><span>Keyboard Glow (خط درخشان کیبورد)</span><input data-fx="keyboardGlowEnabled" type="checkbox"></label>
       <label class="range-label">Keyboard Glow Intensity <input data-fx-value="keyboardGlowIntensity" type="text" class="fx-value-input"></label>
       <input data-fx="keyboardGlowIntensity" type="range" min="0" max="1" step="0.01">
