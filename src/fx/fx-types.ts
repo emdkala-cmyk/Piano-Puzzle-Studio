@@ -40,6 +40,11 @@ pathStyle: FxPathStyle;
   customColor: string;
 keyboardGlowEnabled: boolean;
   keyboardGlowIntensity: number;
+  lightTrailEnabled: boolean;
+  lightTrailWidth: number;
+  lightTrailGlowLayers: number;
+  lightTrailLifetimeMs: number;
+  lightTrailCoreBrightness: number;
 }
 
 export interface FxNoteEvent {
@@ -129,7 +134,12 @@ pathStyle: "sequential" as FxPathStyle,
   particleMotion: "curved" as FxParticleMotion,
   customColor: "#ff6600",
   keyboardGlowEnabled: true,
-  keyboardGlowIntensity: 0.75
+  keyboardGlowIntensity: 0.75,
+  lightTrailEnabled: true,
+  lightTrailWidth: 14,
+  lightTrailGlowLayers: 3,
+  lightTrailLifetimeMs: 1200,
+  lightTrailCoreBrightness: 0.95
 };
 
 export function clamp(value: number, min = 0, max = 1): number {
@@ -160,7 +170,11 @@ export function normalizeVisualFxConfig(value?: Partial<VisualFxConfig>): Visual
 pathStyle: ["sequential", "random", "spiral", "reverse", "scattered"].includes(merged.pathStyle as string) ? merged.pathStyle as FxPathStyle : "sequential",
     particleMotion: ["curved", "spiral", "linear", "orbital", "random-wobble"].includes(merged.particleMotion as string) ? merged.particleMotion as FxParticleMotion : "curved",
     customColor: typeof merged.customColor === "string" ? merged.customColor : "#ff6600",
-    keyboardGlowIntensity: clamp(merged.keyboardGlowIntensity)
+    keyboardGlowIntensity: clamp(merged.keyboardGlowIntensity),
+    lightTrailWidth: Math.max(2, Math.min(40, Number.isFinite(merged.lightTrailWidth) ? merged.lightTrailWidth : DEFAULT_VISUAL_FX_CONFIG.lightTrailWidth)),
+    lightTrailGlowLayers: Math.max(1, Math.min(5, Math.round(Number.isFinite(merged.lightTrailGlowLayers) ? merged.lightTrailGlowLayers : DEFAULT_VISUAL_FX_CONFIG.lightTrailGlowLayers))),
+    lightTrailLifetimeMs: Math.max(200, Math.min(3000, Number.isFinite(merged.lightTrailLifetimeMs) ? merged.lightTrailLifetimeMs : DEFAULT_VISUAL_FX_CONFIG.lightTrailLifetimeMs)),
+    lightTrailCoreBrightness: clamp(merged.lightTrailCoreBrightness)
   };
 }
 

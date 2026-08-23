@@ -21,6 +21,7 @@ import { ImpactEffect } from "./impact-effect";
 import { LightingController } from "./lighting-controller";
 import { SmokeController } from "./smoke-controller";
 import { KeyboardGlowController } from "./keyboard-glow";
+import { LightTrailController } from "./light-trail";
 import { getFxPresetTuning } from "./fx-presets";
 import { FxAssetPipeline } from "./asset-pipeline";
 import { SeededRandom } from "./seeded-random";
@@ -65,6 +66,7 @@ export class VisualFxEngine {
   private readonly lightingController = new LightingController();
   private readonly smokeController = new SmokeController();
   private readonly keyboardGlow = new KeyboardGlowController();
+  private readonly lightTrail = new LightTrailController();
   private readonly assetPipeline = new FxAssetPipeline();
   private readonly demoLayer = new Container();
   private readonly ribbonLayer = new Graphics();
@@ -106,7 +108,7 @@ export class VisualFxEngine {
   private galaxySpawnTimer = 0;
 
   constructor() {
-    this.layer.addChild(this.lightingController.layer, this.keyboardGlow.layer, this.demoLayer, this.smokeController.layer, this.ribbonLayer, this.particlePool.layer, this.glowController.layer, this.impactEffect.layer);
+    this.layer.addChild(this.lightingController.layer, this.keyboardGlow.layer, this.lightTrail.layer, this.demoLayer, this.smokeController.layer, this.ribbonLayer, this.particlePool.layer, this.glowController.layer, this.impactEffect.layer);
   }
 
   initialize(stage: Container, config?: Partial<VisualFxConfig>): void {
@@ -230,6 +232,10 @@ this.lightingController.noteOn(event.midiNote, event.normalizedVelocity);
     if (!this.isStardustPreset() && this.config.smokeEnabled && tuning.smokeMultiplier > 0) {
       this.emitSmokeLaunch(event.position, event.targetPosition, this.smokeColorFor(behavior, color), event.intensity, behavior);
     }
+    // Start light trail
+    if (this.config.lightTrailEnabled && !this.isStardustPreset()) {
+      this.lightTrail.startTrail(event.pieceId, color, event.intensity, event.position, this.config.lightTrailWidth, this.config.lightTrailGlowLayers);
+    }
     this.lastEvent = `launch:${event.pieceId}`;
   }
 
@@ -250,6 +256,10 @@ this.lightingController.noteOn(event.midiNote, event.normalizedVelocity);
       this.emitHighShimmer(event.position, { x: 0, y: -1 }, color, event.intensity, 0);
     }
     if (this.config.glowEnabled) this.glowController.add(event.position, color, this.config.glowIntensity * tuning.glowMultiplier * event.intensity, this.config.revealDurationMs * 0.8, 22 + event.intensity * 18);
+    // End light trail
+    if (this.config.lightTrailEnabled && !this.isStardustPreset()) {
+      this.lightTrail.endTrail(event.pieceId);
+    }
     this.trails.delete(event.pieceId);
     this.lastEvent = `lock:${event.pieceId}`;
   }
@@ -550,6 +560,8 @@ this.lightingController.noteOn(event.midiNote, event.normalizedVelocity);
     this.keyboardGlow.update(deltaSeconds, this.config.keyboardGlowEnabled && this.config.enabled, this.config.keyboardGlowIntensity);
     this.glowController.update(deltaMs);
     this.impactEffect.update(deltaMs);
+    this.lightTrail.setPaused(this.paused);
+    this.lightTrail.update(deltaMs);
     if (!this.paused) this.particlePool.update(deltaSeconds);
     if (!this.paused) this.smokeController.update(deltaSeconds);
     if (!this.paused) {
@@ -582,6 +594,10 @@ this.lightingController.noteOn(event.midiNote, event.normalizedVelocity);
             trail.emissionIndex += 1;
           }
           if (this.config.trailEnabled) this.recordTrail(trail, position);
+          // Add point to light trail
+          if (this.config.lightTrailEnabled && !this.isStardustPreset()) {
+            this.lightTrail.addPoint(frame.pieceId, position.x, position.y);
+          }
           trail.x = position.x;
           trail.y = position.y;
         }
@@ -658,6 +674,7 @@ this.lightingController.noteOn(event.midiNote, event.normalizedVelocity);
     this.impactEffect.dispose();
     this.lightingController.dispose();
     this.keyboardGlow.dispose();
+    this.lightTrail.dispose();
     this.assetPipeline.dispose();
     this.layer.destroy({ children: false });
   }
@@ -668,6 +685,7 @@ this.lightingController.noteOn(event.midiNote, event.normalizedVelocity);
     this.glowController.clear();
     this.impactEffect.clear();
     this.keyboardGlow.clear();
+    this.lightTrail.clear();
     this.trails.clear();
     this.ribbonLayer.clear();
     this.particleSpawnsThisFrame = 0;
@@ -738,6 +756,10 @@ this.lightingController.noteOn(event.midiNote, event.normalizedVelocity);
             trail.emissionIndex += 1;
           }
           this.recordTrail(trail, position);
+          // Add point to light trail in demo mode
+          if (this.config.lightTrailEnabled && !this.isStardustPreset()) {
+            this.lightTrail.addPoint(piece.id, position.x, position.y);
+          }
           trail.x = position.x;
           trail.y = position.y;
         }

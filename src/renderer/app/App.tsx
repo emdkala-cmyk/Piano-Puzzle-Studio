@@ -176,6 +176,18 @@ export function App() {
       <input data-fx="impactIntensity" type="range" min="0" max="1" step="0.01">
       <label class="range-label">Lighting Intensity <input data-fx-value="lightingIntensity" type="text" class="fx-value-input"></label>
       <input data-fx="lightingIntensity" type="range" min="0" max="1" step="0.01">
+      <label class="toggle-row"><span>Keyboard Glow (خط درخشان کیبورد)</span><input data-fx="keyboardGlowEnabled" type="checkbox"></label>
+      <label class="range-label">Keyboard Glow Intensity <input data-fx-value="keyboardGlowIntensity" type="text" class="fx-value-input"></label>
+      <input data-fx="keyboardGlowIntensity" type="range" min="0" max="1" step="0.01">
+      <label class="toggle-row"><span>Light Trail (مسیر نورانی)</span><input data-fx="lightTrailEnabled" type="checkbox"></label>
+      <label class="range-label">Trail Width <input data-fx-value="lightTrailWidth" type="text" class="fx-value-input"></label>
+      <input data-fx="lightTrailWidth" type="range" min="2" max="40" step="1">
+      <label class="range-label">Trail Glow Layers <input data-fx-value="lightTrailGlowLayers" type="text" class="fx-value-input"></label>
+      <input data-fx="lightTrailGlowLayers" type="range" min="1" max="5" step="1">
+      <label class="range-label">Trail Lifetime (ms) <input data-fx-value="lightTrailLifetimeMs" type="text" class="fx-value-input"></label>
+      <input data-fx="lightTrailLifetimeMs" type="range" min="200" max="3000" step="100">
+      <label class="range-label">Core Brightness <input data-fx-value="lightTrailCoreBrightness" type="text" class="fx-value-input"></label>
+      <input data-fx="lightTrailCoreBrightness" type="range" min="0" max="1" step="0.01">
       <label>Color Palette<select data-fx="palette"><option value="artwork">Artwork</option><option value="gold">Gold</option><option value="neon">Neon</option><option value="fire">🔥 Fire</option><option value="ice">❄️ Ice</option><option value="rainbow">🌈 Rainbow</option><option value="custom">🎨 Custom</option><option value="pitch-gradient">Pitch Gradient</option></select></label>
       <label class="range-label">Custom Color <input data-fx="customColor" type="color" value="#ff6600" style="width:40px;height:24px;border:0;background:transparent;cursor:pointer;"></label>
       <label>Path Style<select data-fx="pathStyle"><option value="sequential">Sequential ➡️</option><option value="random">Random 🎲</option><option value="spiral">Spiral 🌀</option><option value="reverse">Reverse ⬅️</option><option value="scattered">Scattered 💫</option></select></label>
