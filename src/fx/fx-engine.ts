@@ -926,9 +926,8 @@ export class VisualFxEngine {
     const distance = Math.hypot(dx, dy) || 1;
     const direction = invert ? -1 : 1;
     const d2 = this.config.particleDensity;
-    // Use d^1.5 instead of d^3 for smoother density curve
-    const dSmooth = Math.sqrt(d2) * d2;
-    const count = Math.round((dSmooth * 24 + d2 * 6) * (0.35 + this.config.trailLength) * tuning.trailMultiplier);
+    // Linear formula: count scales directly with density
+    const count = Math.round(d2 * 30 * (0.35 + this.config.trailLength) * tuning.trailMultiplier);
     for (let i = 0; i < count; i += 1) {
       const spread = this.random.signed(14 + this.config.pathCurvature * 28);
       const normalX = -dy / distance;
@@ -953,9 +952,8 @@ export class VisualFxEngine {
     if (this.config.particleDensity <= 0.02) return;
     const tuning = getFxPresetTuning(this.config.preset);
     const sd = this.config.particleDensity;
-    // Use d^1.5 instead of d^3 for smoother density curve
-    const sdSmooth = Math.sqrt(sd) * sd;
-    const count = Math.round((sdSmooth * 18 + sd * 4) * tuning.sparkleMultiplier);
+    // Linear formula: count scales directly with density
+    const count = Math.round(sd * 22 * tuning.sparkleMultiplier);
     for (let i = 0; i < count; i += 1) {
       const angle = (Math.PI * 2 * i) / count;
       this.tryAcquireParticle(
@@ -991,13 +989,12 @@ export class VisualFxEngine {
     const direction = invert ? -1 : 1;
     const behavior = hasTrail ? this.behaviorForMidi(target.midiNote) : "neutral";
     const d = this.config.particleDensity;
-    // Use linear formula instead of cubic for smoother density transitions
-    const dLin = Math.sqrt(d) * d; // d^1.5 - smoother than d^3
+    // Linear formula: count scales directly with density
     const count = isLocalTrail
-      ? Math.round(dLin * 320 + d * 80)
+      ? Math.round(d * 400)
       : Math.round(
           (behavior === "bass" ? 58 : behavior === "high" ? 52 : 55)
-          * (dLin * 0.85 + d * 0.15)
+          * d
           * tuning.trailMultiplier
           * 0.65
         );
@@ -1695,10 +1692,11 @@ export class VisualFxEngine {
   private adjustedParticleSize(): number {
     const density = this.config.particleDensity;
     const baseSize = this.config.particleSize;
-    // When density is high, reduce size slightly to prevent visual overload
-    // At density 0.5: size multiplier = 1.0 (no change)
-    // At density 1.0: size multiplier = 0.7 (30% smaller)
-    const densityFactor = 1.0 - Math.max(0, (density - 0.5) * 0.6);
+    // Size scales inversely with density to prevent visual overload
+    // At density 0.0: size = 0.3 (tiny)
+    // At density 0.5: size = 0.7
+    // At density 1.0: size = 1.0 (full)
+    const densityFactor = 0.3 + density * 0.7;
     return baseSize * densityFactor;
   }
 
