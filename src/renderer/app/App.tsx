@@ -157,39 +157,66 @@ export function App() {
       <label class="toggle-row"><span>Particle Trails</span><input data-fx="trailEnabled" type="checkbox"></label>
       <label class="toggle-row"><span>Smoke Layer</span><input data-fx="smokeEnabled" type="checkbox"></label>
       <label class="toggle-row"><span>Lock-in Impact</span><input data-fx="lockImpactEnabled" type="checkbox"></label>
-      <label class="toggle-row"><span>Artwork Lighting</span><input data-fx="lightingEnabled" type="checkbox"></label>
-      <label class="range-label">Glow Intensity <input data-fx-value="glowIntensity" type="text" class="fx-value-input"></label>
-      <input data-fx="glowIntensity" type="range" min="0" max="1" step="0.01">
-      <label class="range-label">Particle Density <input data-fx-value="particleDensity" type="text" class="fx-value-input"></label>
-      <input data-fx="particleDensity" type="range" min="0" max="1" step="0.01">
-      <label class="range-label">Smoke Density <input data-fx-value="smokeDensity" type="text" class="fx-value-input"></label>
-      <input data-fx="smokeDensity" type="range" min="0" max="1" step="0.01">
-      <label class="range-label">Particle Size <input data-fx-value="particleSize" type="text" class="fx-value-input"></label>
-      <input data-fx="particleSize" type="range" min="0.35" max="2.5" step="0.05">
-      <label class="range-label">Trail Length <input data-fx-value="trailLength" type="text" class="fx-value-input"></label>
-      <input data-fx="trailLength" type="range" min="0" max="1" step="0.01">
-      <label class="range-label">Path Curvature <input data-fx-value="pathCurvature" type="text" class="fx-value-input"></label>
-      <input data-fx="pathCurvature" type="range" min="0" max="1" step="0.01">
-      <label class="range-label">Reveal Duration <input data-fx-value="revealDurationMs" type="text" class="fx-value-input"> ms</label>
-      <input data-fx="revealDurationMs" type="range" min="120" max="1400" step="20">
-      <label class="range-label">Impact Intensity <input data-fx-value="impactIntensity" type="text" class="fx-value-input"></label>
-      <input data-fx="impactIntensity" type="range" min="0" max="1" step="0.01">
-      <label class="toggle-row"><span>Keyboard Glow (خط درخشان کیبورد)</span><input data-fx="keyboardGlowEnabled" type="checkbox"></label>
-      <label class="range-label">Keyboard Glow Intensity <input data-fx-value="keyboardGlowIntensity" type="text" class="fx-value-input"></label>
-      <input data-fx="keyboardGlowIntensity" type="range" min="0" max="1" step="0.01">
-      <label class="toggle-row"><span>Light Trail (مسیر نورانی)</span><input data-fx="lightTrailEnabled" type="checkbox"></label>
-      <label class="range-label">Trail Width <input data-fx-value="lightTrailWidth" type="text" class="fx-value-input"></label>
-      <input data-fx="lightTrailWidth" type="range" min="2" max="40" step="1">
-      <label class="range-label">Trail Glow Layers <input data-fx-value="lightTrailGlowLayers" type="text" class="fx-value-input"></label>
-      <input data-fx="lightTrailGlowLayers" type="range" min="1" max="5" step="1">
-      <label class="range-label">Trail Lifetime (ms) <input data-fx-value="lightTrailLifetimeMs" type="text" class="fx-value-input"></label>
-      <input data-fx="lightTrailLifetimeMs" type="range" min="200" max="3000" step="100">
-      <label class="range-label">Core Brightness <input data-fx-value="lightTrailCoreBrightness" type="text" class="fx-value-input"></label>
-      <input data-fx="lightTrailCoreBrightness" type="range" min="0" max="1" step="0.01">
-      <label>Color Palette<select data-fx="palette"><option value="artwork">Artwork</option><option value="gold">Gold</option><option value="neon">Neon</option><option value="fire">🔥 Fire</option><option value="ice">❄️ Ice</option><option value="rainbow">🌈 Rainbow</option><option value="custom">🎨 Custom</option><option value="pitch-gradient">Pitch Gradient</option></select></label>
-      <label class="range-label">Custom Color <input data-fx="customColor" type="color" value="#ff6600" style="width:40px;height:24px;border:0;background:transparent;cursor:pointer;"></label>
-      <label>Path Style<select data-fx="pathStyle"><option value="sequential">Sequential ➡️</option><option value="random">Random 🎲</option><option value="spiral">Spiral 🌀</option><option value="reverse">Reverse ⬅️</option><option value="scattered">Scattered 💫</option></select></label>
-      <label>Particle Motion<select data-fx="particleMotion"><option value="curved">Curved 🌊</option><option value="spiral">Spiral 🌀</option><option value="linear">Linear ➡️</option><option value="orbital">Orbital ⭕</option><option value="random-wobble">Wobble 🎭</option></select></label>
+      <div class="fx-section"><h4 class="fx-section-title">🎨 General</h4>
+        <label class="range-label">FX Preset <select data-fx="preset"><option value="stardust-stream">Stardust Stream</option><option value="cinematic-orbit">Cinematic Orbit</option><option value="smoke-ember">Smoke & Ember</option><option value="golden-dust">Golden Dust</option><option value="neon-ribbon">Neon Ribbon</option><option value="minimal">Minimal</option></select></label>
+        <label class="toggle-row"><span>Enable Visual FX</span><input data-fx="enabled" type="checkbox"></label>
+      </div>
+      <div class="fx-section"><h4 class="fx-section-title">✨ Glow</h4>
+        <label class="range-label">Glow Intensity <input data-fx-value="glowIntensity" type="text" class="fx-value-input"></label>
+        <input data-fx="glowIntensity" type="range" min="0" max="1" step="0.01">
+        <label class="range-label">Glow Duration <input data-fx-value="glowDurationMs" type="text" class="fx-value-input"> ms</label>
+        <input data-fx="glowDurationMs" type="range" min="40" max="1000" step="10">
+      </div>
+      <div class="fx-section"><h4 class="fx-section-title">🔮 Particles</h4>
+        <label class="toggle-row"><span>Enable Particles</span><input data-fx="particlesEnabled" type="checkbox"></label>
+        <label class="range-label">Density <input data-fx-value="particleDensity" type="text" class="fx-value-input"></label>
+        <input data-fx="particleDensity" type="range" min="0" max="1" step="0.01">
+        <label class="range-label">Size <input data-fx-value="particleSize" type="text" class="fx-value-input"></label>
+        <input data-fx="particleSize" type="range" min="0.35" max="2.5" step="0.05">
+        <label class="range-label">Lifetime <input data-fx-value="particleLifetimeMs" type="text" class="fx-value-input"> ms</label>
+        <input data-fx="particleLifetimeMs" type="range" min="40" max="2000" step="10">
+        <label class="range-label">Trail Length <input data-fx-value="trailLength" type="text" class="fx-value-input"></label>
+        <input data-fx="trailLength" type="range" min="0" max="1" step="0.01">
+      </div>
+      <div class="fx-section"><h4 class="fx-section-title">💨 Smoke</h4>
+        <label class="toggle-row"><span>Enable Smoke</span><input data-fx="smokeEnabled" type="checkbox"></label>
+        <label class="range-label">Density <input data-fx-value="smokeDensity" type="text" class="fx-value-input"></label>
+        <input data-fx="smokeDensity" type="range" min="0" max="1" step="0.01">
+        <label class="range-label">Layers <input data-fx-value="smokeLayerCount" type="text" class="fx-value-input"></label>
+        <input data-fx="smokeLayerCount" type="range" min="1" max="3" step="1">
+      </div>
+      <div class="fx-section"><h4 class="fx-section-title">💫 Light Trail</h4>
+        <label class="toggle-row"><span>Enable Light Trail</span><input data-fx="lightTrailEnabled" type="checkbox"></label>
+        <label class="range-label">Width <input data-fx-value="lightTrailWidth" type="text" class="fx-value-input"></label>
+        <input data-fx="lightTrailWidth" type="range" min="2" max="40" step="1">
+        <label class="range-label">Glow Layers <input data-fx-value="lightTrailGlowLayers" type="text" class="fx-value-input"></label>
+        <input data-fx="lightTrailGlowLayers" type="range" min="1" max="5" step="1">
+        <label class="range-label">Lifetime <input data-fx-value="lightTrailLifetimeMs" type="text" class="fx-value-input"> ms</label>
+        <input data-fx="lightTrailLifetimeMs" type="range" min="200" max="3000" step="100">
+        <label class="range-label">Core Brightness <input data-fx-value="lightTrailCoreBrightness" type="text" class="fx-value-input"></label>
+        <input data-fx="lightTrailCoreBrightness" type="range" min="0" max="1" step="0.01">
+      </div>
+      <div class="fx-section"><h4 class="fx-section-title">🎯 Movement</h4>
+        <label class="range-label">Path Curvature <input data-fx-value="pathCurvature" type="text" class="fx-value-input"></label>
+        <input data-fx="pathCurvature" type="range" min="0" max="1" step="0.01">
+        <label>Path Style<select data-fx="pathStyle"><option value="sequential">Sequential ➡️</option><option value="random">Random 🎲</option><option value="spiral">Spiral 🌀</option><option value="reverse">Reverse ⬅️</option><option value="scattered">Scattered 💫</option></select></label>
+        <label>Particle Motion<select data-fx="particleMotion"><option value="curved">Curved 🌊</option><option value="spiral">Spiral 🌀</option><option value="linear">Linear ➡️</option><option value="orbital">Orbital ⭕</option><option value="random-wobble">Wobble 🎭</option></select></label>
+      </div>
+      <div class="fx-section"><h4 class="fx-section-title">🎨 Color</h4>
+        <label>Palette<select data-fx="palette"><option value="artwork">Artwork</option><option value="gold">Gold</option><option value="neon">Neon</option><option value="fire">🔥 Fire</option><option value="ice">❄️ Ice</option><option value="rainbow">🌈 Rainbow</option><option value="custom">🎨 Custom</option><option value="pitch-gradient">Pitch Gradient</option></select></label>
+        <label class="range-label">Custom Color <input data-fx="customColor" type="color" value="#ff6600" style="width:40px;height:24px;border:0;background:transparent;cursor:pointer;"></label>
+      </div>
+      <div class="fx-section"><h4 class="fx-section-title">💥 Impact</h4>
+        <label class="range-label">Impact Intensity <input data-fx-value="impactIntensity" type="text" class="fx-value-input"></label>
+        <input data-fx="impactIntensity" type="range" min="0" max="1" step="0.01">
+        <label class="range-label">Reveal Duration <input data-fx-value="revealDurationMs" type="text" class="fx-value-input"> ms</label>
+        <input data-fx="revealDurationMs" type="range" min="120" max="1400" step="20">
+      </div>
+      <div class="fx-section"><h4 class="fx-section-title">🎹 Keyboard</h4>
+        <label class="toggle-row"><span>Keyboard Glow</span><input data-fx="keyboardGlowEnabled" type="checkbox"></label>
+        <label class="range-label">Glow Intensity <input data-fx-value="keyboardGlowIntensity" type="text" class="fx-value-input"></label>
+        <input data-fx="keyboardGlowIntensity" type="range" min="0" max="1" step="0.01">
+      </div>
       <div class="control-row"><button type="button" data-fx-action="reset" class="ghost-button">Reset FX Settings</button><button type="button" data-fx-action="demo" class="ghost-button">Run Demo Scene</button></div>
       <div class="debug-grid"><span>Active particles</span><strong data-fx-stat="activeParticles">0</strong><span>Particle capacity</span><strong data-fx-stat="maxActiveParticles">0</strong><span>Active smoke</span><strong data-fx-stat="activeSmoke">0</strong><span>Smoke capacity</span><strong data-fx-stat="maxActiveSmoke">0</strong><span>Smoke layers</span><strong data-fx-stat="smokeLayerCount">3</strong><span>Emitted particles/frame</span><strong data-fx-stat="emittedParticles">0</strong><span>Emitted smoke/frame</span><strong data-fx-stat="emittedSmoke">0</strong><span>Particle budget/frame</span><strong data-fx-stat="particleFrameBudget">24</strong><span>Smoke budget/frame</span><strong data-fx-stat="smokeFrameBudget">12</strong><span>Estimated FPS</span><strong data-fx-stat="estimatedFps">60</strong><span>Dropped particles</span><strong data-fx-stat="droppedParticles">0</strong><span>Dropped smoke</span><strong data-fx-stat="droppedSmoke">0</strong><span>Dropped: pool capacity</span><strong data-fx-stat="droppedByPoolCapacity">0</strong><span>Dropped: frame budget</span><strong data-fx-stat="droppedByFrameBudget">0</strong><span>Dropped: invalid event</span><strong data-fx-stat="droppedByInvalidEvent">0</strong><span>Dropped: inactive state</span><strong data-fx-stat="droppedByInactiveState">0</strong><span>Last FX event</span><strong data-fx-stat="lastFxEvent">none</strong></div>`;
 
