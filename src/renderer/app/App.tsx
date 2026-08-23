@@ -112,6 +112,7 @@ export function App() {
   const showPieceBordersRef = useRef(true);
   const geometryRef = useRef<GeometryResult | undefined>(undefined);
   const mappingRef = useRef<MidiMappingResult | undefined>(undefined);
+  const projectedMappingRef = useRef<MidiMappingResult | undefined>(undefined);
   const timingRef = useRef<AnimationTimingSettings>(normalizeAnimationTiming(project.animationTimingSettings));
   const lastUiSync = useRef(0);
   const [timingSettings, setTimingSettings] = useState<AnimationTimingSettings>(() => normalizeAnimationTiming(project.animationTimingSettings));
@@ -502,7 +503,11 @@ export function App() {
     if (pianoBackgroundRef.current) pianoBackgroundRef.current.position.set(offsetX, offsetY);
     if (rendererRef.current) rendererRef.current.layer.position.set(offsetX, offsetY);
     if (debugLayerRef.current) debugLayerRef.current.position.set(offsetX, offsetY);
-    if (fxRef.current) { fxRef.current.layer.position.set(offsetX, offsetY); fxRef.current.layer.scale.set(k); }
+    if (fxRef.current) {
+      fxRef.current.layer.position.set(offsetX, offsetY);
+      fxRef.current.layer.scale.set(k);
+      fxRef.current.setKeyboardGlowSize(DEFAULT_LAYOUT.compositionWidth, DEFAULT_LAYOUT.compositionHeight, DEFAULT_LAYOUT.pianoRegion.y);
+    }
     rebuildPianoBackground(k);
     rebuildPuzzleRenderer();
   }
@@ -518,7 +523,8 @@ export function App() {
     const currentTimeMs = clockRef.current.currentTimeMs;
     const previousAudioTimeMs = lastAudioTimeMsRef.current;
     if (mappingRef.current && currentTimeMs > previousAudioTimeMs) {
-      for (const event of mappingRef.current.events) {
+      const events = projectedMappingRef.current?.events ?? mappingRef.current.events;
+      for (const event of events) {
         if ((event.startTimeMs > previousAudioTimeMs || (previousAudioTimeMs === 0 && event.startTimeMs === 0)) && event.startTimeMs <= currentTimeMs) {
           if (audioEnabledRef.current) audioRef.current.noteOn(event.midiNote, event.normalizedVelocity, event.durationMs);
           fxRef.current?.onNoteOn({
@@ -595,11 +601,13 @@ export function App() {
         : undefined;
       expressionResultRef.current = expressionResult;
       const projectedMapping = projectedMappingFor()!;
+      projectedMappingRef.current = projectedMapping;
       const timeline = engineRef.current.rebuild({ mapping: projectedMapping, pieces: projectedGeometryResult.pieces, timing: timingSettings, expression: expressionResult });
       clockRef.current.setTotalDuration(timeline.totalDurationMs);
       setTimelineInfo({ count: timeline.animations.length, totalDurationMs: timeline.totalDurationMs });
     } else {
       expressionResultRef.current = undefined;
+      projectedMappingRef.current = undefined;
       engineRef.current.timeline = { animations: [], totalDurationMs: 0 };
       clockRef.current.setTotalDuration(0);
       setTimelineInfo({ count: 0, totalDurationMs: 0 });

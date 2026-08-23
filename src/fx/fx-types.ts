@@ -35,9 +35,11 @@ export interface VisualFxConfig {
   particleSize: number;
   pathCurvature: number;
   revealDurationMs: number;
-  pathStyle: FxPathStyle;
+pathStyle: FxPathStyle;
   particleMotion: FxParticleMotion;
   customColor: string;
+keyboardGlowEnabled: boolean;
+  keyboardGlowIntensity: number;
 }
 
 export interface FxNoteEvent {
@@ -123,9 +125,11 @@ export const DEFAULT_VISUAL_FX_CONFIG: VisualFxConfig = {
   particleSize: 0.9,
   pathCurvature: 0.58,
   revealDurationMs: 620,
-  pathStyle: "sequential" as FxPathStyle,
+pathStyle: "sequential" as FxPathStyle,
   particleMotion: "curved" as FxParticleMotion,
-  customColor: "#ff6600"
+  customColor: "#ff6600",
+  keyboardGlowEnabled: true,
+  keyboardGlowIntensity: 0.75
 };
 
 export function clamp(value: number, min = 0, max = 1): number {
@@ -153,9 +157,10 @@ export function normalizeVisualFxConfig(value?: Partial<VisualFxConfig>): Visual
     glowDurationMs: Math.max(40, Number.isFinite(merged.glowDurationMs) ? merged.glowDurationMs : DEFAULT_VISUAL_FX_CONFIG.glowDurationMs),
     particleLifetimeMs: Math.max(40, Number.isFinite(merged.particleLifetimeMs) ? merged.particleLifetimeMs : DEFAULT_VISUAL_FX_CONFIG.particleLifetimeMs),
     revealDurationMs: Math.max(120, Number.isFinite(merged.revealDurationMs) ? merged.revealDurationMs : DEFAULT_VISUAL_FX_CONFIG.revealDurationMs),
-    pathStyle: ["sequential", "random", "spiral", "reverse", "scattered"].includes(merged.pathStyle as string) ? merged.pathStyle as FxPathStyle : "sequential",
+pathStyle: ["sequential", "random", "spiral", "reverse", "scattered"].includes(merged.pathStyle as string) ? merged.pathStyle as FxPathStyle : "sequential",
     particleMotion: ["curved", "spiral", "linear", "orbital", "random-wobble"].includes(merged.particleMotion as string) ? merged.particleMotion as FxParticleMotion : "curved",
-    customColor: typeof merged.customColor === "string" ? merged.customColor : "#ff6600"
+    customColor: typeof merged.customColor === "string" ? merged.customColor : "#ff6600",
+    keyboardGlowIntensity: clamp(merged.keyboardGlowIntensity)
   };
 }
 

@@ -50,6 +50,16 @@ export function evaluateAnimation(animation: PieceAnimation, timeMs: number): Pi
   const progress = ease(elapsedMs / animation.durationMs, animation.easing);
   const growth = SPAWN_MIN_SCALE + (1 - SPAWN_MIN_SCALE) * ease(elapsedMs / animation.durationMs, "easeOut");
   const scale = baseScale * growth;
-  const currentPosition: Point = { x: animation.spawnPosition.x + (animation.targetPosition.x - animation.spawnPosition.x) * progress, y: animation.spawnPosition.y + (animation.targetPosition.y - animation.spawnPosition.y) * progress };
+  let currentPosition: Point;
+  if (animation.controlPoint) {
+    const t = progress;
+    const ct = 1 - t;
+    currentPosition = {
+      x: ct * ct * animation.spawnPosition.x + 2 * ct * t * animation.controlPoint.x + t * t * animation.targetPosition.x,
+      y: ct * ct * animation.spawnPosition.y + 2 * ct * t * animation.controlPoint.y + t * t * animation.targetPosition.y
+    };
+  } else {
+    currentPosition = { x: animation.spawnPosition.x + (animation.targetPosition.x - animation.spawnPosition.x) * progress, y: animation.spawnPosition.y + (animation.targetPosition.y - animation.spawnPosition.y) * progress };
+  }
   return { ...animation, scale, rotation, opacity, progress, currentPosition, state: "moving", visible: true, completed: false, elapsedMs };
 }

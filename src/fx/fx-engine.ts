@@ -20,6 +20,7 @@ import { GlowController } from "./glow-controller";
 import { ImpactEffect } from "./impact-effect";
 import { LightingController } from "./lighting-controller";
 import { SmokeController } from "./smoke-controller";
+import { KeyboardGlowController } from "./keyboard-glow";
 import { getFxPresetTuning } from "./fx-presets";
 import { FxAssetPipeline } from "./asset-pipeline";
 import { SeededRandom } from "./seeded-random";
@@ -63,6 +64,7 @@ export class VisualFxEngine {
   private readonly impactEffect = new ImpactEffect();
   private readonly lightingController = new LightingController();
   private readonly smokeController = new SmokeController();
+  private readonly keyboardGlow = new KeyboardGlowController();
   private readonly assetPipeline = new FxAssetPipeline();
   private readonly demoLayer = new Container();
   private readonly ribbonLayer = new Graphics();
@@ -104,7 +106,7 @@ export class VisualFxEngine {
   private galaxySpawnTimer = 0;
 
   constructor() {
-    this.layer.addChild(this.lightingController.layer, this.demoLayer, this.smokeController.layer, this.ribbonLayer, this.particlePool.layer, this.glowController.layer, this.impactEffect.layer);
+    this.layer.addChild(this.lightingController.layer, this.keyboardGlow.layer, this.demoLayer, this.smokeController.layer, this.ribbonLayer, this.particlePool.layer, this.glowController.layer, this.impactEffect.layer);
   }
 
   initialize(stage: Container, config?: Partial<VisualFxConfig>): void {
@@ -166,7 +168,11 @@ export class VisualFxEngine {
         textureId === "light-streak" ? 0.58 : 0.68
       );
     }
-    if (this.config.lightingIntensity > 0.02) this.lightingController.noteOn(event.midiNote, event.normalizedVelocity);
+if (this.config.lightingIntensity > 0.02) this.lightingController.noteOn(event.midiNote, event.normalizedVelocity);
+this.lightingController.noteOn(event.midiNote, event.normalizedVelocity);
+    if (this.config.keyboardGlowEnabled) {
+      this.keyboardGlow.hitKey(event.position.x, color, this.config.keyboardGlowIntensity * (0.35 + event.normalizedVelocity * 0.65));
+    }
     this.lastEvent = `note-on:${event.midiNote}`;
   }
 
@@ -540,6 +546,8 @@ export class VisualFxEngine {
     }
     this.lightingController.setPaused(this.paused);
     this.lightingController.update(deltaSeconds, this.config);
+    this.keyboardGlow.setPaused(this.paused);
+    this.keyboardGlow.update(deltaSeconds, this.config.keyboardGlowEnabled && this.config.enabled, this.config.keyboardGlowIntensity);
     this.glowController.update(deltaMs);
     this.impactEffect.update(deltaMs);
     if (!this.paused) this.particlePool.update(deltaSeconds);
@@ -613,6 +621,10 @@ export class VisualFxEngine {
     this.lastEvent = "reset";
   }
 
+  setKeyboardGlowSize(width: number, height: number, pianoTopY: number): void {
+    this.keyboardGlow.setSize(width, height, pianoTopY);
+  }
+
   getStats(): FxDebugStats {
     return {
       activeParticles: this.particlePool.activeCount,
@@ -645,6 +657,7 @@ export class VisualFxEngine {
     this.glowController.dispose();
     this.impactEffect.dispose();
     this.lightingController.dispose();
+    this.keyboardGlow.dispose();
     this.assetPipeline.dispose();
     this.layer.destroy({ children: false });
   }
@@ -654,6 +667,7 @@ export class VisualFxEngine {
     this.smokeController.clear();
     this.glowController.clear();
     this.impactEffect.clear();
+    this.keyboardGlow.clear();
     this.trails.clear();
     this.ribbonLayer.clear();
     this.particleSpawnsThisFrame = 0;

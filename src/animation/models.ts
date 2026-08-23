@@ -35,6 +35,7 @@ export interface PieceAnimation {
   spawnPosition: Point;
   targetPosition: Point;
   currentPosition: Point;
+  controlPoint?: Point;
   rotation: number;
   scale: number;
   opacity: number;
