@@ -107,6 +107,7 @@ export class VisualFxEngine {
 
   constructor() {
     this.layer.addChild(this.keyboardGlow.layer, this.demoLayer, this.lightTrail.layer, this.smokeController.layer, this.ribbonLayer, this.particlePool.layer, this.glowController.layer, this.impactEffect.layer);
+    this.layer.zIndex = 1000;
   }
 
   initialize(stage: Container, config?: Partial<VisualFxConfig>): void {

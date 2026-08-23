@@ -675,6 +675,7 @@ export function App() {
       initialized = true;
       if (!puzzleHost.current) return;
       puzzleHost.current.appendChild(app.canvas);
+      app.stage.sortableChildren = true;
       const pianoBackground = new Container(); pianoBackgroundRef.current = pianoBackground; app.stage.addChild(pianoBackground);
       const renderer = new PuzzleRenderer(); rendererRef.current = renderer; app.stage.addChild(renderer.layer);
       const debugLayer = new Container(); debugLayer.visible = timingRef.current.debugVisible; debugLayerRef.current = debugLayer; app.stage.addChild(debugLayer);
