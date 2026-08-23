@@ -106,7 +106,7 @@ export class VisualFxEngine {
   private galaxySpawnTimer = 0;
 
   constructor() {
-    this.layer.addChild(this.keyboardGlow.layer, this.lightTrail.layer, this.demoLayer, this.smokeController.layer, this.ribbonLayer, this.particlePool.layer, this.glowController.layer, this.impactEffect.layer);
+    this.layer.addChild(this.keyboardGlow.layer, this.demoLayer, this.lightTrail.layer, this.smokeController.layer, this.ribbonLayer, this.particlePool.layer, this.glowController.layer, this.impactEffect.layer);
   }
 
   initialize(stage: Container, config?: Partial<VisualFxConfig>): void {
