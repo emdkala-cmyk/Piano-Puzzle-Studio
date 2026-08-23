@@ -354,66 +354,7 @@ export class VisualFxEngine {
 
 
   private drawAmbientGlow(): void {
-    const glow = new Graphics();
-    const cx = 540;
-    const cy = 480;
-
-    // Layer 1: Deep blue atmospheric fill (very large, very soft)
-    for (let r = 800; r > 0; r -= 2) {
-      const t = r / 800;
-      const alpha = 0.04 * Math.pow(t, 1.4);
-      glow.circle(cx, cy, r).fill({ color: 0x142a60, alpha });
-    }
-
-    // Layer 2: Warm amber/orange glow (center-left) - like fire light
-    for (let r = 550; r > 0; r -= 2) {
-      const t = r / 550;
-      const alpha = 0.035 * Math.pow(t, 1.5);
-      glow.circle(cx - 180, cy + 120, r).fill({ color: 0xdd5500, alpha });
-    }
-
-    // Layer 3: Deep red accent (upper center) - like bg7 reference
-    for (let r = 420; r > 0; r -= 2) {
-      const t = r / 420;
-      const alpha = 0.028 * Math.pow(t, 1.5);
-      glow.circle(cx - 60, cy - 80, r).fill({ color: 0xaa2200, alpha });
-    }
-
-    // Layer 4: Purple/magenta accent (right side)
-    for (let r = 350; r > 0; r -= 2) {
-      const t = r / 350;
-      const alpha = 0.022 * Math.pow(t, 1.4);
-      glow.circle(cx + 300, cy - 60, r).fill({ color: 0x6622cc, alpha });
-    }
-
-    // Layer 5: Golden core highlight (center) - bright and warm
-    for (let r = 200; r > 0; r -= 2) {
-      const t = r / 200;
-      const alpha = 0.05 * Math.pow(t, 1.2);
-      glow.circle(cx, cy - 40, r).fill({ color: 0xffcc44, alpha });
-    }
-
-    // Layer 6: Hot white center
-    for (let r = 80; r > 0; r -= 1) {
-      const t = r / 80;
-      const alpha = 0.04 * Math.pow(t, 1.0);
-      glow.circle(cx, cy - 20, r).fill({ color: 0xffffff, alpha });
-    }
-
-    // Top atmospheric haze
-    glow.rect(0, 0, 1080, 480).fill({ color: 0x0c1424, alpha: 0.25 });
-    // Bottom haze near keyboard - warm
-    glow.rect(0, 1400, 1080, 520).fill({ color: 0x1a1008, alpha: 0.18 });
-    // Horizontal light band across center
-    glow.rect(0, 380, 1080, 200).fill({ color: 0x182848, alpha: 0.1 });
-    // Warm haze near keyboard top
-    for (let y = 0; y < 120; y += 1) {
-      const t = y / 120;
-      glow.rect(0, 1680 - y, 1080, 1).fill({ color: 0x331100, alpha: 0.08 * (1 - t) });
-    }
-
-    this.demoLayer.addChild(glow);
-    this.demoAmbientGlow = glow;
+    // Ambient glow removed for cleaner look
   }
 
   private drawAmbientStars(): void {
