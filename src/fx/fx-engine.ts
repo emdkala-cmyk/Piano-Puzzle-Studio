@@ -942,7 +942,7 @@ export class VisualFxEngine {
         },
         this.config.particleLifetimeMs * (0.85 + this.config.trailLength * 0.7),
         color,
-        this.config.particleSize * tuning.particleScale * (0.42 + intensity * 0.78) * this.random.range(0.7, 1.25),
+        this.adjustedParticleSize() * tuning.particleScale * (0.42 + intensity * 0.78) * this.random.range(0.7, 1.25),
         this.chooseTrailTexture(),
         0.42 + intensity * 0.32
       );
@@ -963,7 +963,7 @@ export class VisualFxEngine {
         { x: Math.cos(angle) * (18 + intensity * 22), y: Math.sin(angle) * (18 + intensity * 22) },
         Math.min(500, this.config.particleLifetimeMs + 100),
         color,
-        this.config.particleSize * tuning.particleScale * (0.55 + intensity * 0.9),
+        this.adjustedParticleSize() * tuning.particleScale * (0.55 + intensity * 0.9),
         "spark-cross"
       );
     }
@@ -1061,7 +1061,7 @@ export class VisualFxEngine {
         velocity,
         this.config.particleLifetimeMs * this.random.range(isLocalTrail ? 0.34 : 0.72, isLocalTrail ? 0.7 : 1.42),
         particleColor,
-        this.config.particleSize * tuning.particleScale * textureScale * this.random.range(0.72, 1.42),
+        this.adjustedParticleSize() * tuning.particleScale * textureScale * this.random.range(0.72, 1.42),
         textureId,
         (0.82 + intensity * 0.18) * this.random.range(0.85, 1.15)
       );
@@ -1689,6 +1689,17 @@ export class VisualFxEngine {
     return this.config.preset === "stardust-stream" || this.config.preset === "vortex-fire" || this.config.preset === "galaxy-swirl" || this.config.preset === "ethereal-white"
       || this.config.preset === "pink-nebula" || this.config.preset === "sparkle-burst"
       || this.config.preset === "firework-streaks" || this.config.preset === "purple-vortex";
+  }
+
+  /** Adjust particle size based on density to prevent saturation */
+  private adjustedParticleSize(): number {
+    const density = this.config.particleDensity;
+    const baseSize = this.config.particleSize;
+    // When density is high, reduce size slightly to prevent visual overload
+    // At density 0.5: size multiplier = 1.0 (no change)
+    // At density 1.0: size multiplier = 0.7 (30% smaller)
+    const densityFactor = 1.0 - Math.max(0, (density - 0.5) * 0.6);
+    return baseSize * densityFactor;
   }
 
   private isVortexPreset(): boolean {
