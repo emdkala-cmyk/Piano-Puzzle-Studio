@@ -80,6 +80,8 @@ export function App() {
   const [previewTab, setPreviewTab] = useState<"calibration" | "puzzle">("calibration");
   const [inspectorTab, setInspectorTab] = useState<"mapping" | "playback" | "expression" | "fx">("mapping");
   const [fxSettings, setFxSettings] = useState<VisualFxConfig>(DEFAULT_VISUAL_FX_CONFIG);
+  const [customPresetName, setCustomPresetName] = useState("");
+  const [customPresets, setCustomPresets] = useState<Record<string, Partial<VisualFxConfig>>>({});
   const [previewPieceCount, setPreviewPieceCount] = useState(0);
   const densityPreviewRef = useRef<HTMLCanvasElement>(null);
   const [calibZoom, setCalibZoom] = useState({ scale: 1, panX: 0, panY: 0 });
@@ -135,6 +137,13 @@ export function App() {
   useEffect(() => { referenceFrameRef.current = referenceFrame; geometryRef.current = geometry; mappingRef.current = mapping; timingRef.current = timingSettings; expressionRef.current = expressionSettings; showPieceBordersRef.current = showPieceBorders; audioEnabledRef.current = audioEnabled; calibZoomRef.current = calibZoom; pianoPlacementRef.current = pianoPlacement; artworkPlacementRef.current = artworkPlacement; }, [referenceFrame, geometry, mapping, timingSettings, expressionSettings, showPieceBorders, audioEnabled, calibZoom, pianoPlacement, artworkPlacement]);
   useEffect(() => { setArtworkPlacement(DEFAULT_ARTWORK_PLACEMENT); }, [puzzleArtwork?.id]);
   useEffect(() => { fxRef.current?.setConfig(fxSettings); }, [fxSettings]);
+  // Load custom presets from localStorage
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("piano-puzzle-custom-presets");
+      if (saved) setCustomPresets(JSON.parse(saved));
+    } catch {}
+  }, []);
   useEffect(() => {
     const tabs = document.querySelector<HTMLElement>(".inspector-tabs");
     const inspector = document.querySelector<HTMLElement>(".inspector");
@@ -151,14 +160,14 @@ export function App() {
     panel.hidden = true;
     panel.innerHTML = `
       <div class="fx-dom-heading">Visual FX / جلوه‌های بصری</div>
-      <label>FX Preset<select data-fx="preset"><option value="stardust-stream">Stardust Energy Stream</option><option value="cinematic-orbit">Cinematic Orbit</option><option value="smoke-ember">Smoke & Ember</option><option value="golden-dust">Golden Dust</option><option value="neon-ribbon">Neon Ribbon</option><option value="pink-nebula">Pink Nebula 🌸</option><option value="sparkle-burst">Sparkle Burst ✨</option><option value="firework-streaks">Firework Streaks 🎆</option><option value="purple-vortex">Purple Vortex 🌀</option><option value="minimal">Minimal</option></select></label>
+      <label>FX Preset<select data-fx="preset"><option value="stardust-stream">Stardust Energy Stream</option><option value="cinematic-orbit">Cinematic Orbit</option><option value="smoke-ember">Smoke & Ember</option><option value="golden-dust">Golden Dust</option><option value="neon-ribbon">Neon Ribbon</option><option value="pink-nebula">Pink Nebula 🌸</option><option value="sparkle-burst">Sparkle Burst ✨</option><option value="firework-streaks">Firework Streaks 🎆</option><option value="purple-vortex">Purple Vortex 🌀</option><option value="pink-nebula">Pink Nebula 🌸</option><option value="sparkle-burst">Sparkle Burst ✨</option><option value="firework-streaks">Firework Streaks 🎆</option><option value="purple-vortex">Purple Vortex 🌀</option><option value="ice-crystal">Ice Crystal ❄️</option><option value="fire-dance">Fire Dance 🔥</option><option value="dreamy-pastel">Dreamy Pastel 🎨</option><option value="minimal">Minimal</option></select></label>
       <label class="toggle-row"><span>Enable Visual FX</span><input data-fx="enabled" type="checkbox"></label>
       <label class="toggle-row"><span>Keyboard Glow</span><input data-fx="glowEnabled" type="checkbox"></label>
       <label class="toggle-row"><span>Particle Trails</span><input data-fx="trailEnabled" type="checkbox"></label>
       <label class="toggle-row"><span>Smoke Layer</span><input data-fx="smokeEnabled" type="checkbox"></label>
       <label class="toggle-row"><span>Lock-in Impact</span><input data-fx="lockImpactEnabled" type="checkbox"></label>
       <div class="fx-section"><h4 class="fx-section-title">🎨 General</h4>
-        <label class="range-label">FX Preset <select data-fx="preset"><option value="stardust-stream">Stardust Stream</option><option value="cinematic-orbit">Cinematic Orbit</option><option value="smoke-ember">Smoke & Ember</option><option value="golden-dust">Golden Dust</option><option value="neon-ribbon">Neon Ribbon</option><option value="minimal">Minimal</option></select></label>
+        <label class="range-label">FX Preset <select data-fx="preset"><option value="stardust-stream">Stardust Stream</option><option value="cinematic-orbit">Cinematic Orbit</option><option value="smoke-ember">Smoke & Ember</option><option value="golden-dust">Golden Dust</option><option value="neon-ribbon">Neon Ribbon</option><option value="pink-nebula">Pink Nebula 🌸</option><option value="sparkle-burst">Sparkle Burst ✨</option><option value="firework-streaks">Firework Streaks 🎆</option><option value="purple-vortex">Purple Vortex 🌀</option><option value="ice-crystal">Ice Crystal ❄️</option><option value="fire-dance">Fire Dance 🔥</option><option value="dreamy-pastel">Dreamy Pastel 🎨</option><option value="minimal">Minimal</option></select></label>
         <label class="toggle-row"><span>Enable Visual FX</span><input data-fx="enabled" type="checkbox"></label>
       </div>
       <div class="fx-section"><h4 class="fx-section-title">✨ Glow</h4>
@@ -218,6 +227,10 @@ export function App() {
         <input data-fx="keyboardGlowIntensity" type="range" min="0" max="1" step="0.01">
       </div>
       <div class="control-row"><button type="button" data-fx-action="reset" class="ghost-button">Reset FX Settings</button><button type="button" data-fx-action="demo" class="ghost-button">Run Demo Scene</button></div>
+      <div class="fx-section"><h4 class="fx-section-title">💾 Save Custom Preset</h4>
+        <label class="range-label">Preset Name <input id="custom-preset-name" type="text" placeholder="My Preset" style="width:120px;padding:4px 8px;background:#0a0e1c;border:1px solid #39436f;border-radius:6px;color:#f5f7ff;font-size:11px;"></label>
+        <button id="save-custom-preset" type="button" class="ghost-button" style="margin-top:6px;">Save Preset</button>
+      </div>
       <div class="debug-grid"><span>Active particles</span><strong data-fx-stat="activeParticles">0</strong><span>Particle capacity</span><strong data-fx-stat="maxActiveParticles">0</strong><span>Active smoke</span><strong data-fx-stat="activeSmoke">0</strong><span>Smoke capacity</span><strong data-fx-stat="maxActiveSmoke">0</strong><span>Smoke layers</span><strong data-fx-stat="smokeLayerCount">3</strong><span>Emitted particles/frame</span><strong data-fx-stat="emittedParticles">0</strong><span>Emitted smoke/frame</span><strong data-fx-stat="emittedSmoke">0</strong><span>Particle budget/frame</span><strong data-fx-stat="particleFrameBudget">24</strong><span>Smoke budget/frame</span><strong data-fx-stat="smokeFrameBudget">12</strong><span>Estimated FPS</span><strong data-fx-stat="estimatedFps">60</strong><span>Dropped particles</span><strong data-fx-stat="droppedParticles">0</strong><span>Dropped smoke</span><strong data-fx-stat="droppedSmoke">0</strong><span>Dropped: pool capacity</span><strong data-fx-stat="droppedByPoolCapacity">0</strong><span>Dropped: frame budget</span><strong data-fx-stat="droppedByFrameBudget">0</strong><span>Dropped: invalid event</span><strong data-fx-stat="droppedByInvalidEvent">0</strong><span>Dropped: inactive state</span><strong data-fx-stat="droppedByInactiveState">0</strong><span>Last FX event</span><strong data-fx-stat="lastFxEvent">none</strong></div>`;
 
     const content = Array.from(inspector.children).filter((child) => child !== inspector.firstElementChild && child !== tabs);
@@ -286,6 +299,19 @@ export function App() {
     panel.addEventListener("input", onInput);
     panel.addEventListener("change", onInput);
     panel.addEventListener("click", onPanelClick);
+    // Save custom preset button
+    const saveBtn = document.getElementById("save-custom-preset");
+    const nameInput = document.getElementById("custom-preset-name") as HTMLInputElement | null;
+    const onSavePreset = () => {
+      const name = nameInput?.value?.trim();
+      if (!name) { alert("Please enter a preset name"); return; }
+      const newPresets = { ...customPresets, [name]: fxSettings };
+      setCustomPresets(newPresets);
+      localStorage.setItem("piano-puzzle-custom-presets", JSON.stringify(newPresets));
+      if (nameInput) nameInput.value = "";
+      alert(`Preset "${name}" saved!`);
+    };
+    saveBtn?.addEventListener("click", onSavePreset);
     panel.addEventListener("wheel", (e) => {
       const target = e.target as HTMLInputElement;
       if (target.tagName === "INPUT" && target.type === "range") {
@@ -323,7 +349,7 @@ export function App() {
     tabs.appendChild(fxTab);
     inspector.appendChild(panel);
     syncControls();
-    return () => { fxTab.removeEventListener("click", onTabsClick); tabs.removeEventListener("click", onTabsClick); panel.removeEventListener("input", onInput); panel.removeEventListener("change", onInput); panel.removeEventListener("click", onPanelClick); fxTab.remove(); panel.remove(); };
+    return () => { saveBtn?.removeEventListener("click", onSavePreset); fxTab.removeEventListener("click", onTabsClick); tabs.removeEventListener("click", onTabsClick); panel.removeEventListener("input", onInput); panel.removeEventListener("change", onInput); panel.removeEventListener("click", onPanelClick); fxTab.remove(); panel.remove(); };
   }, []);
 
   useEffect(() => {
@@ -331,7 +357,7 @@ export function App() {
     if (!panel) return;
     if (!panel.querySelector("[data-fx-asset-gallery]")) {
       const gallery = fxRef.current?.createAssetGallery();
-      if (gallery) panel.appendChild(gallery);
+      if (gallery) { gallery.style.display = "none"; panel.appendChild(gallery); }
     }
     panel.querySelectorAll<HTMLInputElement | HTMLSelectElement>("[data-fx]").forEach((control) => {
       const key = control.dataset.fx as keyof VisualFxConfig;

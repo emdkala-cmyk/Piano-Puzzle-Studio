@@ -282,6 +282,71 @@ const PRESET_TUNING: Record<VisualFxPreset, FxPresetTuning> = {
     bassSmokeMultiplier: 1.6,
     highSmokeMultiplier: 0.4,
     highShimmerMultiplier: 3.5
+  },
+
+  // ── NEW PRESETS ──────────────────────────────────────────────────────
+
+  /**
+   * Ice Crystal — Cold blue/white particles with sharp edges
+   */
+  "ice-crystal": {
+    trailMultiplier: 2.5,
+    smokeMultiplier: 0.8,
+    sparkleMultiplier: 3.0,
+    particleScale: 0.7,
+    curveMultiplier: 0.8,
+    swirl: 0.4,
+    glowMultiplier: 2.0,
+    smokeCoreScale: 0.6,
+    smokeVolumeScale: 0.9,
+    smokeResidueScale: 1.2,
+    smokeDrag: 0.7,
+    smokeTurbulence: 0.6,
+    bassSmokeMultiplier: 0.9,
+    highSmokeMultiplier: 1.2,
+    highShimmerMultiplier: 2.5
+  },
+
+  /**
+   * Fire Dance — Warm orange/red with lots of movement
+   */
+  "fire-dance": {
+    trailMultiplier: 4.0,
+    smokeMultiplier: 1.5,
+    sparkleMultiplier: 3.5,
+    particleScale: 1.1,
+    curveMultiplier: 2.0,
+    swirl: 3.0,
+    glowMultiplier: 2.5,
+    smokeCoreScale: 0.9,
+    smokeVolumeScale: 1.2,
+    smokeResidueScale: 1.4,
+    smokeDrag: 0.5,
+    smokeTurbulence: 2.0,
+    bassSmokeMultiplier: 1.5,
+    highSmokeMultiplier: 0.6,
+    highShimmerMultiplier: 2.0
+  },
+
+  /**
+   * Dreamy Pastel — Soft pastel colors with slow movement
+   */
+  "dreamy-pastel": {
+    trailMultiplier: 1.8,
+    smokeMultiplier: 2.0,
+    sparkleMultiplier: 1.5,
+    particleScale: 0.6,
+    curveMultiplier: 1.5,
+    swirl: 1.0,
+    glowMultiplier: 1.8,
+    smokeCoreScale: 1.2,
+    smokeVolumeScale: 1.8,
+    smokeResidueScale: 2.0,
+    smokeDrag: 0.9,
+    smokeTurbulence: 0.8,
+    bassSmokeMultiplier: 1.3,
+    highSmokeMultiplier: 0.8,
+    highShimmerMultiplier: 1.2
   }
 };
 
