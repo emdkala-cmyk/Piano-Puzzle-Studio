@@ -18,7 +18,6 @@ import { colorForPitch } from "./color-palette";
 import { ParticlePool } from "./particle-pool";
 import { GlowController } from "./glow-controller";
 import { ImpactEffect } from "./impact-effect";
-import { LightingController } from "./lighting-controller";
 import { SmokeController } from "./smoke-controller";
 import { KeyboardGlowController } from "./keyboard-glow";
 import { LightTrailController } from "./light-trail";
@@ -63,7 +62,6 @@ export class VisualFxEngine {
   private readonly particlePool = new ParticlePool(MAX_ACTIVE_PARTICLES);
   private readonly glowController = new GlowController();
   private readonly impactEffect = new ImpactEffect();
-  private readonly lightingController = new LightingController();
   private readonly smokeController = new SmokeController();
   private readonly keyboardGlow = new KeyboardGlowController();
   private readonly lightTrail = new LightTrailController();
@@ -108,7 +106,7 @@ export class VisualFxEngine {
   private galaxySpawnTimer = 0;
 
   constructor() {
-    this.layer.addChild(this.lightingController.layer, this.keyboardGlow.layer, this.lightTrail.layer, this.demoLayer, this.smokeController.layer, this.ribbonLayer, this.particlePool.layer, this.glowController.layer, this.impactEffect.layer);
+    this.layer.addChild(this.keyboardGlow.layer, this.lightTrail.layer, this.demoLayer, this.smokeController.layer, this.ribbonLayer, this.particlePool.layer, this.glowController.layer, this.impactEffect.layer);
   }
 
   initialize(stage: Container, config?: Partial<VisualFxConfig>): void {
@@ -118,7 +116,7 @@ export class VisualFxEngine {
     this.smokeController.setTexturePipeline(this.assetPipeline);
     this.glowController.setTexturePipeline(this.assetPipeline);
     this.impactEffect.setTexturePipeline(this.assetPipeline);
-    this.lightingController.setTexturePipeline(this.assetPipeline);
+
     this.resetRandomStreams("piano-puzzle-fx");
     this.layer.visible = this.config.enabled;
     if (!this.layer.parent) stage.addChild(this.layer);
@@ -275,17 +273,17 @@ export class VisualFxEngine {
     this.demoBackdrop.rect(0, 0, 1080, 1920).fill({ color: 0x050810, alpha: 1 });
     this.demoLayer.addChild(this.demoBackdrop);
 
-    // Ambient atmospheric glow layers — gated by lightingIntensity
+    // Ambient atmospheric glow layers
     this.drawAmbientGlow();
-    if (this.demoAmbientGlow) this.demoAmbientGlow.alpha = this.config.lightingIntensity;
+    if (this.demoAmbientGlow) this.demoAmbientGlow.alpha = 1;
 
-    // Draw ambient star field — gated by lightingIntensity
+    // Draw ambient star field
     this.drawAmbientStars();
-    if (this.demoAmbientStars) this.demoAmbientStars.alpha = this.config.lightingIntensity;
+    if (this.demoAmbientStars) this.demoAmbientStars.alpha = 1;
 
-    // Draw piano keyboard at the bottom — energy bar gated by lightingIntensity
+    // Draw piano keyboard at the bottom
     this.drawPianoKeyboard();
-    if (this.demoKeyboard) this.demoKeyboard.alpha = this.config.lightingIntensity < 0.01 ? 0 : 0.35 + this.config.lightingIntensity * 0.65;
+    if (this.demoKeyboard) this.demoKeyboard.alpha = 1;
 
     // Flash rings layer
     const flashRings = new Graphics();
@@ -554,8 +552,7 @@ export class VisualFxEngine {
       return;
     }
     // Lighting disabled for performance
-    // this.lightingController.setPaused(this.paused);
-    // this.lightingController.update(deltaSeconds, this.config);
+
     this.keyboardGlow.setPaused(this.paused);
     this.keyboardGlow.update(deltaSeconds, this.config.keyboardGlowEnabled && this.config.enabled, this.config.keyboardGlowIntensity);
     this.glowController.update(deltaMs);
@@ -615,12 +612,12 @@ export class VisualFxEngine {
 
   onPause(): void {
     this.paused = true;
-    this.lightingController.setPaused(true);
+
   }
 
   onResume(): void {
     this.paused = false;
-    this.lightingController.setPaused(false);
+
   }
 
   onSeek(): void {
@@ -633,7 +630,7 @@ export class VisualFxEngine {
     this.clearTransient();
     this.clearDemo();
     this.resetRandomStreams("piano-puzzle-fx");
-    this.lightingController.clear();
+
     this.lastEvent = "reset";
   }
 
@@ -672,7 +669,7 @@ export class VisualFxEngine {
     this.smokeController.dispose();
     this.glowController.dispose();
     this.impactEffect.dispose();
-    this.lightingController.dispose();
+
     this.keyboardGlow.dispose();
     this.lightTrail.dispose();
     this.assetPipeline.dispose();
@@ -894,11 +891,11 @@ export class VisualFxEngine {
       this.demoBackdrop.rect(0, 0, 1080, 1920).fill({ color: 0x050810, alpha: 1 });
       this.demoLayer.addChild(this.demoBackdrop);
       this.drawAmbientGlow();
-      if (this.demoAmbientGlow) this.demoAmbientGlow.alpha = this.config.lightingIntensity;
+      if (this.demoAmbientGlow) this.demoAmbientGlow.alpha = 1;
       this.drawAmbientStars();
-      if (this.demoAmbientStars) this.demoAmbientStars.alpha = this.config.lightingIntensity;
+      if (this.demoAmbientStars) this.demoAmbientStars.alpha = 1;
       this.drawPianoKeyboard();
-      if (this.demoKeyboard) this.demoKeyboard.alpha = this.config.lightingIntensity < 0.01 ? 0 : 0.35 + this.config.lightingIntensity * 0.65;
+      if (this.demoKeyboard) this.demoKeyboard.alpha = 1;
       // Re-add reveal graphic
       this.demoRevealGraphic = new Graphics();
       this.demoRevealGraphic.rect(0, 0, 1080, 1920).fill({ color: 0xffffff, alpha: 0 });

@@ -12,7 +12,6 @@ export interface VisualFxConfig {
   enabled: boolean;
   glowEnabled: boolean;
   particlesEnabled: boolean;
-  lightingEnabled: boolean;
   lockImpactEnabled: boolean;
   glowIntensity: number;
   glowDurationMs: number;
@@ -21,7 +20,6 @@ export interface VisualFxConfig {
   particleDensity: number;
   particleLifetimeMs: number;
   impactIntensity: number;
-  lightingIntensity: number;
   palette: VisualFxPalette;
   preset: VisualFxPreset;
   smokeEnabled: boolean;
@@ -107,7 +105,6 @@ export const DEFAULT_VISUAL_FX_CONFIG: VisualFxConfig = {
   enabled: true,
   glowEnabled: true,
   particlesEnabled: true,
-  lightingEnabled: true,
   lockImpactEnabled: true,
   glowIntensity: 0.55,
   glowDurationMs: 580,
@@ -116,7 +113,6 @@ export const DEFAULT_VISUAL_FX_CONFIG: VisualFxConfig = {
   particleDensity: 0.85,
   particleLifetimeMs: 850,
   impactIntensity: 0.35,
-  lightingIntensity: 0.28,
   palette: "artwork",
   preset: "stardust-stream",
   smokeEnabled: true,
@@ -154,7 +150,6 @@ export function normalizeVisualFxConfig(value?: Partial<VisualFxConfig>): Visual
     trailLength: clamp(merged.trailLength),
     particleDensity: clamp(merged.particleDensity),
     impactIntensity: clamp(merged.impactIntensity),
-    lightingIntensity: clamp(merged.lightingIntensity),
     smokeDensity: clamp(merged.smokeDensity),
     smokeLayerCount: Math.max(1, Math.min(NATURAL_SMOKE_LAYER_COUNT, Math.round(Number.isFinite(merged.smokeLayerCount) ? merged.smokeLayerCount : NATURAL_SMOKE_LAYER_COUNT))),
     smokeEmissionIntervalMs: Math.max(24, Math.min(120, Number.isFinite(merged.smokeEmissionIntervalMs) ? merged.smokeEmissionIntervalMs : DEFAULT_VISUAL_FX_CONFIG.smokeEmissionIntervalMs)),
