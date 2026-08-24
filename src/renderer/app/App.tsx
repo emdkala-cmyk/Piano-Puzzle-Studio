@@ -181,7 +181,7 @@ export function App() {
         <label class="range-label">Density <input data-fx-value="particleDensity" type="text" class="fx-value-input"></label>
         <input data-fx="particleDensity" type="range" min="0" max="1" step="0.01">
         <label class="range-label">Size <input data-fx-value="particleSize" type="text" class="fx-value-input"></label>
-        <input data-fx="particleSize" type="range" min="0.35" max="2.5" step="0.05">
+        <input data-fx="particleSize" type="range" min="0.05" max="2.5" step="0.05">
         <label class="range-label">Lifetime <input data-fx-value="particleLifetimeMs" type="text" class="fx-value-input"> ms</label>
         <input data-fx="particleLifetimeMs" type="range" min="40" max="2000" step="10">
         <label class="range-label">Trail Length <input data-fx-value="trailLength" type="text" class="fx-value-input"></label>
@@ -239,6 +239,10 @@ export function App() {
       <div class="fx-section"><h4 class="fx-section-title">💾 Save Custom Preset</h4>
         <label class="range-label">Preset Name <input id="custom-preset-name" type="text" placeholder="My Preset" style="width:120px;padding:4px 8px;background:#0a0e1c;border:1px solid #39436f;border-radius:6px;color:#f5f7ff;font-size:11px;"></label>
         <button id="save-custom-preset" type="button" class="ghost-button" style="margin-top:6px;">Save Preset</button>
+      </div>
+      <div class="fx-section"><h4 class="fx-section-title">📂 Load Custom Preset</h4>
+        <label class="range-label">Select Preset<select id="custom-preset-select" style="width:140px;padding:4px 8px;background:#0a0e1c;border:1px solid #39436f;border-radius:6px;color:#f5f7ff;font-size:11px;"><option value="">-- none --</option></select></label>
+        <div class="control-row" style="margin-top:6px;"><button id="load-custom-preset" type="button" class="ghost-button">Load</button><button id="delete-custom-preset" type="button" class="ghost-button" style="color:#ff6b6b;">Delete</button></div>
       </div>
       <div class="debug-grid"><span>Active particles</span><strong data-fx-stat="activeParticles">0</strong><span>Particle capacity</span><strong data-fx-stat="maxActiveParticles">0</strong><span>Active smoke</span><strong data-fx-stat="activeSmoke">0</strong><span>Smoke capacity</span><strong data-fx-stat="maxActiveSmoke">0</strong><span>Smoke layers</span><strong data-fx-stat="smokeLayerCount">3</strong><span>Emitted particles/frame</span><strong data-fx-stat="emittedParticles">0</strong><span>Emitted smoke/frame</span><strong data-fx-stat="emittedSmoke">0</strong><span>Particle budget/frame</span><strong data-fx-stat="particleFrameBudget">24</strong><span>Smoke budget/frame</span><strong data-fx-stat="smokeFrameBudget">12</strong><span>Estimated FPS</span><strong data-fx-stat="estimatedFps">60</strong><span>Dropped particles</span><strong data-fx-stat="droppedParticles">0</strong><span>Dropped smoke</span><strong data-fx-stat="droppedSmoke">0</strong><span>Dropped: pool capacity</span><strong data-fx-stat="droppedByPoolCapacity">0</strong><span>Dropped: frame budget</span><strong data-fx-stat="droppedByFrameBudget">0</strong><span>Dropped: invalid event</span><strong data-fx-stat="droppedByInvalidEvent">0</strong><span>Dropped: inactive state</span><strong data-fx-stat="droppedByInactiveState">0</strong><span>Last FX event</span><strong data-fx-stat="lastFxEvent">none</strong></div>`;
 
@@ -308,6 +312,21 @@ export function App() {
     panel.addEventListener("input", onInput);
     panel.addEventListener("change", onInput);
     panel.addEventListener("click", onPanelClick);
+    // Populate preset select dropdown
+    const presetSelect = document.getElementById("custom-preset-select") as HTMLSelectElement | null;
+    const refreshPresetList = () => {
+      if (!presetSelect) return;
+      const prev = presetSelect.value;
+      presetSelect.innerHTML = '<option value="">-- none --</option>';
+      for (const name of Object.keys(customPresets)) {
+        const opt = document.createElement("option");
+        opt.value = name; opt.textContent = name;
+        presetSelect.appendChild(opt);
+      }
+      if (prev && customPresets[prev]) presetSelect.value = prev;
+    };
+    refreshPresetList();
+
     // Save custom preset button
     const saveBtn = document.getElementById("save-custom-preset");
     const nameInput = document.getElementById("custom-preset-name") as HTMLInputElement | null;
@@ -318,9 +337,33 @@ export function App() {
       setCustomPresets(newPresets);
       localStorage.setItem("piano-puzzle-custom-presets", JSON.stringify(newPresets));
       if (nameInput) nameInput.value = "";
+      refreshPresetList();
       alert(`Preset "${name}" saved!`);
     };
     saveBtn?.addEventListener("click", onSavePreset);
+
+    // Load custom preset
+    const loadBtn = document.getElementById("load-custom-preset");
+    const onLoadPreset = () => {
+      const name = presetSelect?.value;
+      if (!name || !customPresets[name]) { alert("یک پریست انتخاب کنید"); return; }
+      setFxSettings((prev) => ({ ...prev, ...customPresets[name] } as VisualFxConfig));
+    };
+    loadBtn?.addEventListener("click", onLoadPreset);
+
+    // Delete custom preset
+    const deleteBtn = document.getElementById("delete-custom-preset");
+    const onDeletePreset = () => {
+      const name = presetSelect?.value;
+      if (!name || !customPresets[name]) { alert("یک پریست انتخاب کنید"); return; }
+      if (!confirm(`پریست "${name}" حذف شود؟`)) return;
+      const { [name]: _, ...rest } = customPresets;
+      setCustomPresets(rest);
+      localStorage.setItem("piano-puzzle-custom-presets", JSON.stringify(rest));
+      refreshPresetList();
+    };
+    deleteBtn?.addEventListener("click", onDeletePreset);
+
     panel.addEventListener("wheel", (e) => {
       const target = e.target as HTMLInputElement;
       if (target.tagName === "INPUT" && target.type === "range") {

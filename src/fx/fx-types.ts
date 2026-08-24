@@ -166,7 +166,7 @@ export function normalizeVisualFxConfig(value?: Partial<VisualFxConfig>): Visual
     particleFrameBudget: Math.max(1, Math.min(MAX_PARTICLE_SPAWNS_PER_FRAME, Math.round(Number.isFinite(merged.particleFrameBudget) ? merged.particleFrameBudget : DEFAULT_VISUAL_FX_CONFIG.particleFrameBudget))),
     bassThreshold: Math.max(0, Math.min(127, Math.round(Number.isFinite(merged.bassThreshold) ? merged.bassThreshold : DEFAULT_VISUAL_FX_CONFIG.bassThreshold))),
     highThreshold: Math.max(0, Math.min(127, Math.round(Number.isFinite(merged.highThreshold) ? merged.highThreshold : DEFAULT_VISUAL_FX_CONFIG.highThreshold))),
-    particleSize: Math.max(0.35, Math.min(2.5, Number.isFinite(merged.particleSize) ? merged.particleSize : DEFAULT_VISUAL_FX_CONFIG.particleSize)),
+    particleSize: Math.max(0.05, Math.min(2.5, Number.isFinite(merged.particleSize) ? merged.particleSize : DEFAULT_VISUAL_FX_CONFIG.particleSize)),
     pathCurvature: clamp(merged.pathCurvature),
     glowDurationMs: Math.max(40, Number.isFinite(merged.glowDurationMs) ? merged.glowDurationMs : DEFAULT_VISUAL_FX_CONFIG.glowDurationMs),
     particleLifetimeMs: Math.max(40, Number.isFinite(merged.particleLifetimeMs) ? merged.particleLifetimeMs : DEFAULT_VISUAL_FX_CONFIG.particleLifetimeMs),
