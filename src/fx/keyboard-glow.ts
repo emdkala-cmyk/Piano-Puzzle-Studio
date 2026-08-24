@@ -2,7 +2,7 @@ import { Container, Graphics } from "pixi.js";
 import { clamp } from "./fx-types";
 
 const SEGMENT_COUNT = 88;
-const SEGMENT_DECAY_SPEED = 3.2;
+const SEGMENT_DECAY_SPEED = 1.4;
 
 interface Segment {
   intensity: number;
