@@ -39,28 +39,49 @@ export function suggestDensity(mode: GeometryMode, width: number, height: number
   return best;
 }
 
-function sampleAlpha(source: HTMLImageElement, x: number, y: number): number {
-  const canvas = document.createElement("canvas");
-  canvas.width = source.naturalWidth;
-  canvas.height = source.naturalHeight;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return 1;
-  ctx.drawImage(source, 0, 0);
-  const px = Math.max(0, Math.min(source.naturalWidth - 1, Math.round(x)));
-  const py = Math.max(0, Math.min(source.naturalHeight - 1, Math.round(y)));
-  return ctx.getImageData(px, py, 1, 1).data[3] / 255;
+/**
+ * Build an alpha lookup buffer from the image.
+ * Draw the image once into a small offscreen canvas and read all pixels.
+ */
+interface AlphaBuffer {
+  data: Uint8ClampedArray;
+  width: number;
+  height: number;
 }
 
-/** Sample alpha at multiple points around the centroid to handle edge cases. */
-function pieceAlphaScore(source: HTMLImageElement, cx: number, cy: number, radius: number): number {
-  const a1 = sampleAlpha(source, cx, cy);
-  if (a1 < 0.05) return 0; // center is transparent — skip
-  // Also check a few nearby points to avoid single-pixel noise
-  const a2 = sampleAlpha(source, cx - radius * 0.3, cy);
-  const a3 = sampleAlpha(source, cx + radius * 0.3, cy);
-  const a4 = sampleAlpha(source, cx, cy - radius * 0.3);
-  const a5 = sampleAlpha(source, cx, cy + radius * 0.3);
-  return (a1 + a2 + a3 + a4 + a5) / 5;
+function buildAlphaBuffer(source: HTMLImageElement): AlphaBuffer {
+  const w = source.naturalWidth;
+  const h = source.naturalHeight;
+  // Use a scaled-down buffer for speed: max 256px on longest side
+  const scale = Math.min(1, 256 / Math.max(w, h));
+  const bw = Math.max(1, Math.round(w * scale));
+  const bh = Math.max(1, Math.round(h * scale));
+  const canvas = document.createElement("canvas");
+  canvas.width = bw;
+  canvas.height = bh;
+  const ctx = canvas.getContext("2d")!;
+  ctx.drawImage(source, 0, 0, bw, bh);
+  return { data: ctx.getImageData(0, 0, bw, bh).data, width: bw, height: bh };
+}
+
+function alphaAt(buf: AlphaBuffer, x: number, y: number): number {
+  const px = Math.max(0, Math.min(buf.width - 1, Math.round(x)));
+  const py = Math.max(0, Math.min(buf.height - 1, Math.round(y)));
+  return buf.data[(py * buf.width + px) * 4 + 3] / 255;
+}
+
+/** Sample alpha at 9 points across the piece: center + 8 around the bounding box. */
+function pieceAlphaScore(buf: AlphaBuffer, cx: number, cy: number, imageW: number, imageH: number, pieceW: number, pieceH: number): number {
+  // Map image coords to buffer coords
+  const bx = cx / imageW * buf.width;
+  const by = cy / imageH * buf.height;
+  // Sample radius proportional to piece size in buffer space
+  const r = Math.max(pieceW / imageW, pieceH / imageH) * buf.width * 0.42;
+  let sum = 0;
+  sum += alphaAt(buf, bx, by);
+  const offsets = [[1,0],[-1,0],[0,1],[0,-1],[0.7,0.7],[-0.7,0.7],[0.7,-0.7],[-0.7,-0.7]];
+  for (const [dx, dy] of offsets) sum += alphaAt(buf, bx + dx * r, by + dy * r);
+  return sum / 9;
 }
 
 export function generateGeometry(source: HTMLImageElement, mode: GeometryMode, density = 8): GeometryResult {
@@ -79,22 +100,22 @@ export function generateGeometry(source: HTMLImageElement, mode: GeometryMode, d
     });
   }
 
-  // Filter out pieces whose centroids fall in transparent regions
-  const hasAlpha = source.naturalWidth > 0 && (() => {
-    const c = document.createElement("canvas");
-    c.width = 1; c.height = 1;
-    const ctx = c.getContext("2d");
-    if (!ctx) return false;
-    ctx.drawImage(source, 0, 0, 1, 1);
-    return ctx.getImageData(0, 0, 1, 1).data[3] < 254;
+  // Build alpha buffer once, then filter pieces by transparency
+  const alphaBuf = buildAlphaBuffer(source);
+  const hasTransparency = (() => {
+    for (let i = 3; i < alphaBuf.data.length; i += 4) {
+      if (alphaBuf.data[i] < 200) return true;
+    }
+    return false;
   })();
 
   let filteredPolygons = polygons;
-  if (hasAlpha) {
-    const pieceRadius = Math.min(width / columns, height / rows) * 0.5;
+  if (hasTransparency) {
+    const pieceW = width / columns;
+    const pieceH = height / rows;
     filteredPolygons = polygons.filter((p) => {
       const c = centroid(p);
-      return pieceAlphaScore(source, c.x, c.y, pieceRadius) >= 0.05;
+      return pieceAlphaScore(alphaBuf, c.x, c.y, width, height, pieceW, pieceH) >= 0.05;
     });
   }
 
