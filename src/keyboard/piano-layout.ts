@@ -41,7 +41,7 @@ export function createPianoLayout(type: KeyboardType = "88-key", first = 21, las
     return {
       midiNote, noteName: `${NAMES[midiNote % 12]}${Math.floor(midiNote / 12) - 1}`, keyType,
       octave: Math.floor(midiNote / 12) - 1, normalizedX, normalizedY: y,
-      normalizedWidth, normalizedHeight: h, spawnPoint: { x: centerPoint.x, y: centerPoint.y },
+      normalizedWidth, normalizedHeight: h,      spawnPoint: { x: centerPoint.x, y: 0.08 },
       centerPoint, topEdge: { x: centerPoint.x, y }, bottomEdge: { x: centerPoint.x, y: y + h },
       leftEdge: { x: normalizedX, y: centerPoint.y }, rightEdge: { x: normalizedX + normalizedWidth, y: centerPoint.y }
     };
