@@ -1,6 +1,6 @@
 import { Container, Graphics, Sprite, Texture } from "pixi.js";
 import type { GeometryPiece } from "../geometry/models";
-import type { PieceAnimationFrame } from "../animation/models";
+import type { AnimationTimingSettings, PieceAnimationFrame } from "../animation/models";
 import type { RegionPlacement } from "../composition/coordinate-transform";
 import { DissolveRevealFilter } from "./dissolve-reveal-filter";
 
@@ -13,6 +13,7 @@ export class PuzzlePieceView {
   private ghost?: Sprite;
   private revealFilter?: DissolveRevealFilter;
   private ghostRevealFilter?: DissolveRevealFilter;
+  private glassOverlay?: Graphics;
 
   constructor(
     piece: GeometryPiece,
@@ -65,6 +66,13 @@ export class PuzzlePieceView {
         this.container.addChild(ghost, ghostMask);
       }
 
+      // Frosted glass overlay — sits on top of artwork for a dreamy, glassy look
+      const glassOverlay = new Graphics();
+      glassOverlay.poly(inflatedPath).fill({ color: 0xc8daf0, alpha: 0.22 });
+      glassOverlay.alpha = 0;
+      this.glassOverlay = glassOverlay;
+      this.container.addChild(glassOverlay);
+
       this.container.addChild(sprite, mask);
       if (showBorders) this.shape.poly(path).stroke({ color: 0x8ed0ff, width: 1, alpha: 0.5 });
     } else if (path.length) {
@@ -73,7 +81,7 @@ export class PuzzlePieceView {
     this.container.addChild(this.shape);
   }
 
-  update(frame: PieceAnimationFrame, scale = 1) {
+  update(frame: PieceAnimationFrame, scale = 1, timing?: AnimationTimingSettings, completionRatio = 1) {
     this.container.visible = frame.visible;
     this.container.position.set(this.pivotX + (frame.currentPosition.x - frame.targetPosition.x) * scale, this.pivotY + (frame.currentPosition.y - frame.targetPosition.y) * scale);
     this.container.alpha = frame.opacity;
@@ -84,7 +92,30 @@ export class PuzzlePieceView {
 
     const revealProgress = frame.state === "arrived" ? 1 : Math.max(0, Math.min(1, frame.progress));
     const revealAlpha = frame.state === "arrived" ? 1 : smoothstep(0.035, 0.24, revealProgress);
-    this.artwork.alpha = revealAlpha;
+
+    // Glass effect: while puzzle is incomplete, pieces look frosted/glassy.
+    // When complete (completionRatio ≈ 1), artwork transitions to full clarity.
+    const glassEnabled = timing?.glassEnabled ?? false;
+    const glassOpacity = timing?.glassOpacity ?? 0.35;
+    let artworkAlpha = revealAlpha;
+    let glassOverlayAlpha = 0;
+
+    if (glassEnabled && frame.state !== "cancelled") {
+      if (completionRatio < 1) {
+        // Frosted glass: artwork is dimmed, glass overlay provides dreamy tint
+        artworkAlpha = revealAlpha * (glassOpacity + (1 - glassOpacity) * smoothstep(0, 0.3, completionRatio));
+        glassOverlayAlpha = (1 - completionRatio) * 0.55 * revealAlpha;
+      } else {
+        // Puzzle complete: full clarity, no glass overlay
+        artworkAlpha = revealAlpha;
+        glassOverlayAlpha = 0;
+      }
+    }
+
+    this.artwork.alpha = artworkAlpha;
+    if (this.glassOverlay) {
+      this.glassOverlay.alpha = glassOverlayAlpha;
+    }
 
     if (!this.revealFilter || !this.ghost || !this.ghostRevealFilter) return;
 

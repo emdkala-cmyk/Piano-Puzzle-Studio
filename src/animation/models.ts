@@ -19,6 +19,20 @@ export interface AnimationTimingSettings {
   easing: EasingName;
   animationSpeed: number;
   debugVisible: boolean;
+  /** When true, pieces spawn from random edge positions instead of piano-key positions. */
+  randomSpawn: boolean;
+  /** When true, animation start-times are shuffled so pieces arrive in random order. */
+  randomOrder: boolean;
+  /** Controls how far pieces swing off the straight-line path (0 = straight, 1 = strong curve). */
+  pathCurvature: number;
+  /** When true, pieces appear frosted/glassy while the puzzle is incomplete. */
+  glassEnabled: boolean;
+  /** Alpha multiplier for piece artwork while puzzle is incomplete (0 = invisible, 1 = fully opaque). */
+  glassOpacity: number;
+  /** Duration in ms of the completion glow burst. */
+  completionGlowDurationMs: number;
+  /** Intensity multiplier for the completion glow. */
+  completionGlowIntensity: number;
 }
 
 export interface PieceAnimation {
@@ -35,7 +49,8 @@ export interface PieceAnimation {
   spawnPosition: Point;
   targetPosition: Point;
   currentPosition: Point;
-  controlPoint?: Point;
+  /** Quadratic Bézier control point for curved motion paths. */
+  controlPoint: Point;
   rotation: number;
   scale: number;
   opacity: number;
@@ -73,7 +88,14 @@ export const DEFAULT_ANIMATION_TIMING: AnimationTimingSettings = {
   overlapMode: "allow-overlap",
   easing: "easeOut",
   animationSpeed: 1,
-  debugVisible: true
+  debugVisible: true,
+  randomSpawn: true,
+  randomOrder: true,
+  pathCurvature: 0.6,
+  glassEnabled: true,
+  glassOpacity: 0.35,
+  completionGlowDurationMs: 800,
+  completionGlowIntensity: 1.0
 };
 
 export function normalizeAnimationTiming(value?: Partial<AnimationTimingSettings>): AnimationTimingSettings {

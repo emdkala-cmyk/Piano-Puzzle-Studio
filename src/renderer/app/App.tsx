@@ -581,7 +581,7 @@ export function App() {
     lastFxTickTimeRef.current = now;
     const frames = engineRef.current.evaluate(clockRef.current.currentTimeMs);
     framesRef.current = frames;
-    rendererRef.current?.update(frames, puzzleTransformRef.current.k);
+    rendererRef.current?.update(frames, puzzleTransformRef.current.k, timingRef.current, clockRef.current.currentTimeMs);
     if (debugLayerRef.current) { const visible = timingRef.current.debugVisible || expressionRef.current.debugVisible; debugLayerRef.current.visible = visible; if (visible) updateDebugOverlay(frames); }
     const currentTimeMs = clockRef.current.currentTimeMs;
     const previousAudioTimeMs = lastAudioTimeMsRef.current;
@@ -687,7 +687,7 @@ export function App() {
     rebuildPianoBackground(puzzleTransformRef.current.k);
     const frames = engineRef.current.evaluate(clockRef.current.currentTimeMs);
     framesRef.current = frames;
-    rendererRef.current?.update(frames, puzzleTransformRef.current.k);
+    rendererRef.current?.update(frames, puzzleTransformRef.current.k, timingRef.current, clockRef.current.currentTimeMs);
     setDebugFrames(frames);
   }, [mapping, geometry, timingSettings, expressionSettings, midi, puzzleArtwork, referenceFrame, showPieceBorders, artworkPlacement]);
 
