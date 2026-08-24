@@ -237,7 +237,7 @@ export function App() {
         <label class="range-label">Glow Intensity <input data-fx-value="keyboardGlowIntensity" type="text" class="fx-value-input"></label>
         <input data-fx="keyboardGlowIntensity" type="range" min="0" max="1" step="0.01">
       </div>
-      <div class="control-row"><button type="button" data-fx-action="reset" class="ghost-button">Reset FX Settings</button><button type="button" data-fx-action="demo" class="ghost-button">Run Demo Scene</button></div>
+      <div class="control-row"><button type="button" data-fx-action="reset" class="ghost-button">Reset FX Settings</button><button type="button" data-fx-action="demo" class="ghost-button" id="fx-demo-btn">Run Demo Scene</button></div>
       <div class="fx-section"><h4 class="fx-section-title">💾 Save Custom Preset</h4>
         <label class="range-label">Preset Name <input id="custom-preset-name" type="text" placeholder="My Preset" style="width:120px;padding:4px 8px;background:#0a0e1c;border:1px solid #39436f;border-radius:6px;color:#f5f7ff;font-size:11px;"></label>
         <button id="save-custom-preset" type="button" class="ghost-button" style="margin-top:6px;">Save Preset</button>
@@ -296,13 +296,20 @@ export function App() {
       const action = (event.target as HTMLElement).dataset.fxAction;
       if (action === "reset") setFxSettings(DEFAULT_VISUAL_FX_CONFIG);
       if (action === "demo") {
-        Array.from(document.querySelectorAll<HTMLButtonElement>("button"))
-          .find((button) => button.textContent?.includes("Puzzle Animation Preview"))
-          ?.click();
-        puzzleHost.current?.querySelector<HTMLElement>(".empty-reference")?.style.setProperty("display", "none");
-        fxRef.current?.startDemo();
-        setFxStats(fxRef.current?.getStats());
-        window.setTimeout(() => puzzleHost.current?.querySelector<HTMLElement>(".empty-reference")?.style.setProperty("display", "none"), 0);
+        const btn = document.getElementById("fx-demo-btn");
+        const isRunning = fxRef.current?.isDemoActive?.();
+        if (isRunning) {
+          fxRef.current?.stopDemo();
+          if (btn) btn.textContent = "Run Demo Scene";
+        } else {
+          Array.from(document.querySelectorAll<HTMLButtonElement>("button"))
+            .find((button) => button.textContent?.includes("Puzzle Animation Preview"))
+            ?.click();
+          puzzleHost.current?.querySelector<HTMLElement>(".empty-reference")?.style.setProperty("display", "none");
+          fxRef.current?.startDemo();
+          setFxStats(fxRef.current?.getStats());
+          if (btn) btn.textContent = "Stop Demo";
+        }
       }
     };
     const onTabsClick = (event: Event) => {

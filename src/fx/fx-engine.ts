@@ -481,6 +481,10 @@ export class VisualFxEngine {
     });
   }
 
+  isDemoActive(): boolean {
+    return this.demoActive;
+  }
+
   stopDemo(): void {
     this.clearTransient();
     this.clearDemo();
