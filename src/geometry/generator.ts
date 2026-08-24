@@ -39,6 +39,30 @@ export function suggestDensity(mode: GeometryMode, width: number, height: number
   return best;
 }
 
+function sampleAlpha(source: HTMLImageElement, x: number, y: number): number {
+  const canvas = document.createElement("canvas");
+  canvas.width = source.naturalWidth;
+  canvas.height = source.naturalHeight;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return 1;
+  ctx.drawImage(source, 0, 0);
+  const px = Math.max(0, Math.min(source.naturalWidth - 1, Math.round(x)));
+  const py = Math.max(0, Math.min(source.naturalHeight - 1, Math.round(y)));
+  return ctx.getImageData(px, py, 1, 1).data[3] / 255;
+}
+
+/** Sample alpha at multiple points around the centroid to handle edge cases. */
+function pieceAlphaScore(source: HTMLImageElement, cx: number, cy: number, radius: number): number {
+  const a1 = sampleAlpha(source, cx, cy);
+  if (a1 < 0.05) return 0; // center is transparent — skip
+  // Also check a few nearby points to avoid single-pixel noise
+  const a2 = sampleAlpha(source, cx - radius * 0.3, cy);
+  const a3 = sampleAlpha(source, cx + radius * 0.3, cy);
+  const a4 = sampleAlpha(source, cx, cy - radius * 0.3);
+  const a5 = sampleAlpha(source, cx, cy + radius * 0.3);
+  return (a1 + a2 + a3 + a4 + a5) / 5;
+}
+
 export function generateGeometry(source: HTMLImageElement, mode: GeometryMode, density = 8): GeometryResult {
   const width = source.naturalWidth, height = source.naturalHeight, map = buildImportanceMap(source);
   const columns = Math.max(2, density), rows = Math.max(2, Math.round(density * height / width));
@@ -54,7 +78,27 @@ export function generateGeometry(source: HTMLImageElement, mode: GeometryMode, d
       return [[p[0], top, c, left], [top, p[1], right, c], [c, right, p[2], bottom], [left, c, bottom, p[3]]];
     });
   }
-  return { mode, width, height, pieces: polygons.map((p, i) => makePiece(p, i, width, height, map)), importanceMap: map };
+
+  // Filter out pieces whose centroids fall in transparent regions
+  const hasAlpha = source.naturalWidth > 0 && (() => {
+    const c = document.createElement("canvas");
+    c.width = 1; c.height = 1;
+    const ctx = c.getContext("2d");
+    if (!ctx) return false;
+    ctx.drawImage(source, 0, 0, 1, 1);
+    return ctx.getImageData(0, 0, 1, 1).data[3] < 254;
+  })();
+
+  let filteredPolygons = polygons;
+  if (hasAlpha) {
+    const pieceRadius = Math.min(width / columns, height / rows) * 0.5;
+    filteredPolygons = polygons.filter((p) => {
+      const c = centroid(p);
+      return pieceAlphaScore(source, c.x, c.y, pieceRadius) >= 0.05;
+    });
+  }
+
+  return { mode, width, height, pieces: filteredPolygons.map((p, i) => makePiece(p, i, width, height, map)), importanceMap: map };
 }
 
 export function drawDensityPreview(canvas: HTMLCanvasElement, source: HTMLImageElement, mode: GeometryMode, density: number): number {
