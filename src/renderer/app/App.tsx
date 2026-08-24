@@ -146,6 +146,19 @@ export function App() {
       if (saved) setCustomPresets(JSON.parse(saved));
     } catch {}
   }, []);
+  // Sync preset dropdown with customPresets state (survives F5)
+  useEffect(() => {
+    const sel = document.getElementById("custom-preset-select") as HTMLSelectElement | null;
+    if (!sel) return;
+    const prev = sel.value;
+    sel.innerHTML = '<option value="">-- none --</option>';
+    for (const name of Object.keys(customPresets)) {
+      const opt = document.createElement("option");
+      opt.value = name; opt.textContent = name;
+      sel.appendChild(opt);
+    }
+    if (prev && customPresets[prev]) sel.value = prev;
+  }, [customPresets]);
   useEffect(() => {
     const tabs = document.querySelector<HTMLElement>(".inspector-tabs");
     const inspector = document.querySelector<HTMLElement>(".inspector");
