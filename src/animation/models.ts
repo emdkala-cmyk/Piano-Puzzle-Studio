@@ -89,7 +89,7 @@ export const DEFAULT_ANIMATION_TIMING: AnimationTimingSettings = {
   easing: "easeOut",
   animationSpeed: 1,
   debugVisible: true,
-  randomSpawn: true,
+  randomSpawn: false,
   randomOrder: true,
   pathCurvature: 0.6,
   glassEnabled: true,

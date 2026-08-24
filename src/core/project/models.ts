@@ -69,7 +69,7 @@ export function createProject(): Project {
       easing: "easeOut",
       animationSpeed: 1,
       debugVisible: false,
-      randomSpawn: true,
+      randomSpawn: false,
       randomOrder: true,
       pathCurvature: 0.6,
       glassEnabled: true,
