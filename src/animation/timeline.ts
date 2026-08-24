@@ -145,21 +145,21 @@ export function buildAnimationTimeline(source: AnimationSource): AnimationTimeli
     rawAnimations.push(applyExpressionToAnimation(base, source.expression?.noteExpressions.get(assignment.id)));
   }
 
-  // Optionally randomize arrival order by shuffling start times
+  // Optionally randomize arrival order by shuffling start-times among animations.
+  // This preserves the original MIDI timing distribution so the puzzle finishes
+  // at the same time as the last note, but pieces arrive in random order.
   if (settings.randomOrder && rawAnimations.length > 1) {
-    // Fisher-Yates shuffle with our PRNG
-    for (let i = rawAnimations.length - 1; i > 0; i--) {
+    // Collect original start times
+    const shuffledStarts = rawAnimations.map((a) => a.startTimeMs);
+    // Fisher-Yates shuffle the start times
+    for (let i = shuffledStarts.length - 1; i > 0; i--) {
       const j = Math.floor(rand() * (i + 1));
-      [rawAnimations[i], rawAnimations[j]] = [rawAnimations[j], rawAnimations[i]];
+      [shuffledStarts[i], shuffledStarts[j]] = [shuffledStarts[j], shuffledStarts[i]];
     }
-    // Re-sequence start times with small gaps so pieces arrive in shuffled order
-    let cursor = 0;
-    const gap = 80; // ms between consecutive starts
-    for (const anim of rawAnimations) {
-      anim.startTimeMs = cursor;
-      anim.endTimeMs = cursor + anim.durationMs + settings.postHitHoldMs;
-      perPieceEnd.set(anim.pieceId, anim.endTimeMs);
-      cursor += gap;
+    // Re-assign shuffled start times and recalculate end times
+    for (let i = 0; i < rawAnimations.length; i++) {
+      rawAnimations[i].startTimeMs = shuffledStarts[i];
+      rawAnimations[i].endTimeMs = shuffledStarts[i] + rawAnimations[i].durationMs + settings.postHitHoldMs;
     }
   }
 
