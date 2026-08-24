@@ -133,8 +133,10 @@ export function App() {
   const [expressionSettings, setExpressionSettings] = useState<ExpressionSettings>(() => normalizeExpressionSettings(project.expressionSettings));
   const expressionRef = useRef<ExpressionSettings>(expressionSettings);
   const expressionResultRef = useRef<ExpressionResult | undefined>(undefined);
+  const fxSettingsRef = useRef(fxSettings);
+  const customPresetsRef = useRef(customPresets);
 
-  useEffect(() => { referenceFrameRef.current = referenceFrame; geometryRef.current = geometry; mappingRef.current = mapping; timingRef.current = timingSettings; expressionRef.current = expressionSettings; showPieceBordersRef.current = showPieceBorders; audioEnabledRef.current = audioEnabled; calibZoomRef.current = calibZoom; pianoPlacementRef.current = pianoPlacement; artworkPlacementRef.current = artworkPlacement; }, [referenceFrame, geometry, mapping, timingSettings, expressionSettings, showPieceBorders, audioEnabled, calibZoom, pianoPlacement, artworkPlacement]);
+  useEffect(() => { referenceFrameRef.current = referenceFrame; geometryRef.current = geometry; mappingRef.current = mapping; timingRef.current = timingSettings; expressionRef.current = expressionSettings; showPieceBordersRef.current = showPieceBorders; audioEnabledRef.current = audioEnabled; calibZoomRef.current = calibZoom; pianoPlacementRef.current = pianoPlacement; artworkPlacementRef.current = artworkPlacement; fxSettingsRef.current = fxSettings; customPresetsRef.current = customPresets; }, [referenceFrame, geometry, mapping, timingSettings, expressionSettings, showPieceBorders, audioEnabled, calibZoom, pianoPlacement, artworkPlacement, fxSettings, customPresets]);
   useEffect(() => { setArtworkPlacement(DEFAULT_ARTWORK_PLACEMENT); }, [puzzleArtwork?.id]);
   useEffect(() => { fxRef.current?.setConfig(fxSettings); }, [fxSettings]);
   // Load custom presets from localStorage
@@ -181,7 +183,7 @@ export function App() {
         <label class="range-label">Density <input data-fx-value="particleDensity" type="text" class="fx-value-input"></label>
         <input data-fx="particleDensity" type="range" min="0" max="1" step="0.01">
         <label class="range-label">Size <input data-fx-value="particleSize" type="text" class="fx-value-input"></label>
-        <input data-fx="particleSize" type="range" min="0.05" max="2.5" step="0.05">
+        <input data-fx="particleSize" type="range" min="0.01" max="2.5" step="0.01">
         <label class="range-label">Lifetime <input data-fx-value="particleLifetimeMs" type="text" class="fx-value-input"> ms</label>
         <input data-fx="particleLifetimeMs" type="range" min="40" max="2000" step="10">
         <label class="range-label">Trail Length <input data-fx-value="trailLength" type="text" class="fx-value-input"></label>
@@ -318,12 +320,12 @@ export function App() {
       if (!presetSelect) return;
       const prev = presetSelect.value;
       presetSelect.innerHTML = '<option value="">-- none --</option>';
-      for (const name of Object.keys(customPresets)) {
+      for (const name of Object.keys(customPresetsRef.current)) {
         const opt = document.createElement("option");
         opt.value = name; opt.textContent = name;
         presetSelect.appendChild(opt);
       }
-      if (prev && customPresets[prev]) presetSelect.value = prev;
+      if (prev && customPresetsRef.current[prev]) presetSelect.value = prev;
     };
     refreshPresetList();
 
@@ -333,12 +335,12 @@ export function App() {
     const onSavePreset = () => {
       const name = nameInput?.value?.trim();
       if (!name) { alert("Please enter a preset name"); return; }
-      const newPresets = { ...customPresets, [name]: fxSettings };
+      const current = fxSettingsRef.current;
+      const newPresets = { ...customPresetsRef.current, [name]: current };
       setCustomPresets(newPresets);
       localStorage.setItem("piano-puzzle-custom-presets", JSON.stringify(newPresets));
       if (nameInput) nameInput.value = "";
       refreshPresetList();
-      alert(`Preset "${name}" saved!`);
     };
     saveBtn?.addEventListener("click", onSavePreset);
 
@@ -346,8 +348,8 @@ export function App() {
     const loadBtn = document.getElementById("load-custom-preset");
     const onLoadPreset = () => {
       const name = presetSelect?.value;
-      if (!name || !customPresets[name]) { alert("یک پریست انتخاب کنید"); return; }
-      setFxSettings((prev) => ({ ...prev, ...customPresets[name] } as VisualFxConfig));
+      if (!name || !customPresetsRef.current[name]) { alert("یک پریست انتخاب کنید"); return; }
+      setFxSettings((prev) => ({ ...prev, ...customPresetsRef.current[name] } as VisualFxConfig));
     };
     loadBtn?.addEventListener("click", onLoadPreset);
 
@@ -355,9 +357,9 @@ export function App() {
     const deleteBtn = document.getElementById("delete-custom-preset");
     const onDeletePreset = () => {
       const name = presetSelect?.value;
-      if (!name || !customPresets[name]) { alert("یک پریست انتخاب کنید"); return; }
+      if (!name || !customPresetsRef.current[name]) { alert("یک پریست انتخاب کنید"); return; }
       if (!confirm(`پریست "${name}" حذف شود؟`)) return;
-      const { [name]: _, ...rest } = customPresets;
+      const { [name]: _, ...rest } = customPresetsRef.current;
       setCustomPresets(rest);
       localStorage.setItem("piano-puzzle-custom-presets", JSON.stringify(rest));
       refreshPresetList();
