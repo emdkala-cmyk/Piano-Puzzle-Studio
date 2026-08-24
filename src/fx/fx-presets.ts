@@ -347,28 +347,6 @@ const PRESET_TUNING: Record<VisualFxPreset, FxPresetTuning> = {
     bassSmokeMultiplier: 1.3,
     highSmokeMultiplier: 0.8,
     highShimmerMultiplier: 1.2
-  },
-
-  /**
-   * Fine Dust — Tiny particles like sand grains flowing upward
-   * Creates a dense stream of very small particles
-   */
-  "fine-dust": {
-    trailMultiplier: 12.0,      // very dense trails
-    smokeMultiplier: 0.1,       // minimal smoke
-    sparkleMultiplier: 8.0,     // many tiny sparkles
-    particleScale: 0.25,        // very tiny particles
-    curveMultiplier: 0.3,       // gentle drift
-    swirl: 0.2,                 // minimal swirl
-    glowMultiplier: 0.8,        // soft glow
-    smokeCoreScale: 0.2,        // minimal smoke
-    smokeVolumeScale: 0.3,
-    smokeResidueScale: 0.4,
-    smokeDrag: 0.4,
-    smokeTurbulence: 0.3,
-    bassSmokeMultiplier: 0.3,
-    highSmokeMultiplier: 0.2,
-    highShimmerMultiplier: 4.0  // many tiny shimmer particles
   }
 };
 

@@ -1563,11 +1563,6 @@ export class VisualFxEngine {
   }
 
   private chooseTrailTexture(): FxTextureId {
-    // Fine dust preset: use sharp-dot for tiny particles
-    if (this.config.preset === "fine-dust") {
-      const roll = this.random.nextFloat();
-      return roll < 0.85 ? "sharp-dot" : "soft-orb";
-    }
     if (this.isStardustPreset()) {
       const roll = this.random.nextFloat();
       return roll < 0.35 ? "glow-orb" : roll < 0.65 ? "soft-orb" : roll < 0.82 ? "warm-orb" : "sharp-dot";

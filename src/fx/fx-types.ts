@@ -2,7 +2,7 @@ import type { Point } from "../geometry/models";
 import type { PieceAnimationFrame } from "../animation/models";
 
 export type VisualFxPalette = "artwork" | "gold" | "neon" | "pitch-gradient" | "fire" | "ice" | "rainbow" | "custom";
-export type VisualFxPreset = "stardust-stream" | "cinematic-orbit" | "smoke-ember" | "golden-dust" | "neon-ribbon" | "vortex-fire" | "galaxy-swirl" | "ethereal-white" | "minimal" | "pink-nebula" | "sparkle-burst" | "firework-streaks" | "purple-vortex" | "ice-crystal" | "fire-dance" | "dreamy-pastel" | "fine-dust";
+export type VisualFxPreset = "stardust-stream" | "cinematic-orbit" | "smoke-ember" | "golden-dust" | "neon-ribbon" | "vortex-fire" | "galaxy-swirl" | "ethereal-white" | "minimal" | "pink-nebula" | "sparkle-burst" | "firework-streaks" | "purple-vortex" | "ice-crystal" | "fire-dance" | "dreamy-pastel";
 export type FxPathStyle = "sequential" | "random" | "spiral" | "reverse" | "scattered";
 export type FxParticleMotion = "curved" | "spiral" | "linear" | "orbital" | "random-wobble";
 export type FxSmokeLayer = "core" | "volume" | "residue";
