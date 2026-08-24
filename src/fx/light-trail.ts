@@ -24,6 +24,7 @@ export class LightTrailController {
   private paused = false;
   private maxTrailPoints = 120;
   private lifetimeMs = 1400;
+  private fadeSpeed = 0.55;
 
   constructor() {
     this.layer.addChild(this.glowLayer, this.coreLayer);
@@ -31,6 +32,11 @@ export class LightTrailController {
 
   setPaused(paused: boolean): void {
     this.paused = paused;
+  }
+
+  configure(lifetimeMs: number, fadeSpeed: number): void {
+    this.lifetimeMs = Math.max(100, lifetimeMs);
+    this.fadeSpeed = Math.max(0.1, Math.min(1, fadeSpeed));
   }
 
   clear(): void {
@@ -261,7 +267,9 @@ export class LightTrailController {
     if (age < 80) {
       return age / 80;
     }
-    const fadeStart = this.lifetimeMs * 0.55;
+    // fadeSpeed controls when the fade begins: 0.1 = fade starts at 10% of lifetime (fast fade),
+    // 1.0 = fade starts at 100% (stays bright until nearly gone)
+    const fadeStart = this.lifetimeMs * this.fadeSpeed;
     if (age > fadeStart) {
       const fade = 1 - (age - fadeStart) / (this.lifetimeMs - fadeStart);
       return fade * fade; // Smooth quadratic fade

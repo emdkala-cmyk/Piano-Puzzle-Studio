@@ -204,6 +204,9 @@ export function App() {
         <input data-fx="lightTrailLifetimeMs" type="range" min="200" max="3000" step="100">
         <label class="range-label">Core Brightness <input data-fx-value="lightTrailCoreBrightness" type="text" class="fx-value-input"></label>
         <input data-fx="lightTrailCoreBrightness" type="range" min="0" max="1" step="0.01">
+        <label class="range-label">Fade Speed <input data-fx-value="trailFadeSpeed" type="text" class="fx-value-input"></label>
+        <input data-fx="trailFadeSpeed" type="range" min="0.1" max="1" step="0.01">
+        <small class="anchor-hint">0.1 = سریع محو شود، 1 = آرام</small>
       </div>
       <div class="fx-section"><h4 class="fx-section-title">🎯 Movement</h4>
         <label class="range-label">Path Curvature <input data-fx-value="pathCurvature" type="text" class="fx-value-input"></label>
@@ -220,6 +223,12 @@ export function App() {
         <input data-fx="impactIntensity" type="range" min="0" max="1" step="0.01">
         <label class="range-label">Reveal Duration <input data-fx-value="revealDurationMs" type="text" class="fx-value-input"> ms</label>
         <input data-fx="revealDurationMs" type="range" min="120" max="1400" step="20">
+        <label class="range-label">Lock Fade <input data-fx-value="lockFadeDurationMs" type="text" class="fx-value-input"> ms</label>
+        <input data-fx="lockFadeDurationMs" type="range" min="40" max="3000" step="10">
+        <small class="anchor-hint">مدت درخشش هنگام رسیدن به مقصد</small>
+        <label class="range-label">Impact Duration <input data-fx-value="impactDurationMs" type="text" class="fx-value-input"> ms</label>
+        <input data-fx="impactDurationMs" type="range" min="100" max="2000" step="10">
+        <small class="anchor-hint">مدت افکت انفجاری هنگام قفل شدن</small>
       </div>
       <div class="fx-section"><h4 class="fx-section-title">🎹 Keyboard</h4>
         <label class="toggle-row"><span>Keyboard Glow</span><input data-fx="keyboardGlowEnabled" type="checkbox"></label>

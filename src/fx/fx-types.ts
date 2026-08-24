@@ -43,6 +43,12 @@ keyboardGlowEnabled: boolean;
   lightTrailGlowLayers: number;
   lightTrailLifetimeMs: number;
   lightTrailCoreBrightness: number;
+  /** Duration of the glow + impact burst when a piece locks into place. */
+  lockFadeDurationMs: number;
+  /** How quickly the light trail decays after the piece leaves (0.1=fast, 1=slow). */
+  trailFadeSpeed: number;
+  /** Duration of the lock impact ring/shockwave effect. */
+  impactDurationMs: number;
 }
 
 export interface FxNoteEvent {
@@ -135,7 +141,10 @@ pathStyle: "sequential" as FxPathStyle,
   lightTrailWidth: 14,
   lightTrailGlowLayers: 3,
   lightTrailLifetimeMs: 1200,
-  lightTrailCoreBrightness: 0.95
+  lightTrailCoreBrightness: 0.95,
+  lockFadeDurationMs: 480,
+  trailFadeSpeed: 0.55,
+  impactDurationMs: 650
 };
 
 export function clamp(value: number, min = 0, max = 1): number {
@@ -169,7 +178,10 @@ pathStyle: ["sequential", "random", "spiral", "reverse", "scattered"].includes(m
     lightTrailWidth: Math.max(2, Math.min(40, Number.isFinite(merged.lightTrailWidth) ? merged.lightTrailWidth : DEFAULT_VISUAL_FX_CONFIG.lightTrailWidth)),
     lightTrailGlowLayers: Math.max(1, Math.min(5, Math.round(Number.isFinite(merged.lightTrailGlowLayers) ? merged.lightTrailGlowLayers : DEFAULT_VISUAL_FX_CONFIG.lightTrailGlowLayers))),
     lightTrailLifetimeMs: Math.max(200, Math.min(3000, Number.isFinite(merged.lightTrailLifetimeMs) ? merged.lightTrailLifetimeMs : DEFAULT_VISUAL_FX_CONFIG.lightTrailLifetimeMs)),
-    lightTrailCoreBrightness: clamp(merged.lightTrailCoreBrightness)
+    lightTrailCoreBrightness: clamp(merged.lightTrailCoreBrightness),
+    lockFadeDurationMs: Math.max(40, Math.min(3000, Number.isFinite(merged.lockFadeDurationMs) ? merged.lockFadeDurationMs : DEFAULT_VISUAL_FX_CONFIG.lockFadeDurationMs)),
+    trailFadeSpeed: clamp(merged.trailFadeSpeed),
+    impactDurationMs: Math.max(100, Math.min(2000, Number.isFinite(merged.impactDurationMs) ? merged.impactDurationMs : DEFAULT_VISUAL_FX_CONFIG.impactDurationMs))
   };
 }
 

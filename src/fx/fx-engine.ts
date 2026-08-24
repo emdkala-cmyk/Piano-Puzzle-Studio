@@ -120,6 +120,7 @@ export class VisualFxEngine {
 
     this.resetRandomStreams("piano-puzzle-fx");
     this.layer.visible = this.config.enabled;
+    this.lightTrail.configure(this.config.lightTrailLifetimeMs, this.config.trailFadeSpeed);
     if (!this.layer.parent) stage.addChild(this.layer);
   }
 
@@ -139,6 +140,7 @@ export class VisualFxEngine {
     const wasDemoActive = this.demoActive;
     this.config = normalizeVisualFxConfig({ ...this.config, ...config });
     this.layer.visible = this.config.enabled;
+    this.lightTrail.configure(this.config.lightTrailLifetimeMs, this.config.trailFadeSpeed);
     if (!this.config.enabled) this.clearTransient();
     if (wasDemoActive) this.startDemo();
   }
@@ -246,14 +248,14 @@ export class VisualFxEngine {
     if (this.isStardustPreset() && this.config.particlesEnabled) {
       this.emitStardustLockBurst(event.position, color, event.intensity, behavior);
     } else if (this.config.lockImpactEnabled) {
-      this.impactEffect.add(event.position, color, this.config.impactIntensity * event.intensity);
+      this.impactEffect.add(event.position, color, this.config.impactIntensity * event.intensity, this.config.impactDurationMs);
     }
     if (!this.isStardustPreset() && this.config.particlesEnabled) this.emitSparkles(event.position, color, event.intensity);
     if (!this.isStardustPreset() && this.config.smokeEnabled && tuning.smokeMultiplier > 0) this.emitSmokeBurst(event.position, this.smokeColorFor(behavior, color), event.intensity, behavior);
     if (!this.isStardustPreset() && this.config.particlesEnabled && behavior === "high") {
       this.emitHighShimmer(event.position, { x: 0, y: -1 }, color, event.intensity, 0);
     }
-    if (this.config.glowEnabled) this.glowController.add(event.position, color, this.config.glowIntensity * tuning.glowMultiplier * event.intensity, this.config.revealDurationMs * 0.8, 22 + event.intensity * 18);
+    if (this.config.glowEnabled) this.glowController.add(event.position, color, this.config.glowIntensity * tuning.glowMultiplier * event.intensity, this.config.lockFadeDurationMs, 22 + event.intensity * 18);
     // End light trail
     if (this.config.lightTrailEnabled) {
       this.lightTrail.endTrail(event.pieceId);

@@ -62,7 +62,7 @@ export class ImpactEffect {
     this.texturePipeline = pipeline;
   }
 
-  add(position: Point, color: number, intensity: number): void {
+  add(position: Point, color: number, intensity: number, durationMs = 220): void {
     let slot: ImpactSlot | undefined;
     for (let offset = 0; offset < this.slots.length; offset += 1) {
       const index = (this.nextSlotIndex + offset) % this.slots.length;
@@ -80,7 +80,7 @@ export class ImpactEffect {
     state.y = position.y;
     state.color = color;
     state.age = 0;
-    state.lifetime = 220;
+    state.lifetime = Math.max(80, durationMs);
     state.intensity = clamp(intensity);
     state.rotation = 0;
     state.spin = (state.x * 0.003 + state.y * 0.002) % 2.4 - 1.2;
