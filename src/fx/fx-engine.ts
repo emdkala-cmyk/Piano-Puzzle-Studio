@@ -221,14 +221,8 @@ export class VisualFxEngine {
     if (this.config.glowEnabled) {
       this.glowController.add(event.position, color, this.config.glowIntensity * tuning.glowMultiplier * event.intensity, this.config.revealDurationMs, 16 + event.intensity * 18);
     }
-    if (this.config.particlesEnabled && this.config.trailEnabled) {
-      if (this.isStardustPreset()) {
-        const trail = this.trails.get(event.pieceId);
-        if (trail) this.emitTrail(event.position, trail, color, event.intensity, false, true);
-      } else {
-        this.emitTrail(event.position, event.targetPosition, color, event.intensity, true);
-      }
-    }
+    // Particles are emitted along the trail path in the per-frame update loop,
+    // NOT here. This ensures they follow the same curved Bézier path as the light trail.
     if (!this.isStardustPreset() && this.config.smokeEnabled && tuning.smokeMultiplier > 0) {
       this.emitSmokeLaunch(event.position, event.targetPosition, this.smokeColorFor(behavior, color), event.intensity, behavior);
     }
