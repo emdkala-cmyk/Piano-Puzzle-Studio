@@ -90,8 +90,12 @@ export class PuzzlePieceView {
 
     if (!this.artwork) return;
 
-    const revealProgress = frame.state === "arrived" ? 1 : Math.max(0, Math.min(1, frame.progress));
-    const revealAlpha = frame.state === "arrived" ? 1 : smoothstep(0.035, 0.24, revealProgress);
+    // Reveal is now driven by the animation's reveal curve, not by travel progress,
+    // so the artwork stays energy-only until the piece actually lands.
+    const revealProgress = Math.max(0, Math.min(1, frame.revealProgress));
+    const revealAlpha = frame.state === "arrived"
+      ? smoothstep(0, 0.35, revealProgress)
+      : revealProgress * 0.55;
 
     // Glass effect: while puzzle is incomplete, pieces look frosted/glassy.
     // When complete (completionRatio ≈ 1), artwork transitions to full clarity.
@@ -122,7 +126,8 @@ export class PuzzlePieceView {
     const arrivalAge = Math.max(0, frame.elapsedMs - frame.durationMs);
     const lockEdge = frame.state === "arrived" ? 1 - smoothstep(0, 180, arrivalAge) : 0;
     const movingEdge = frame.state === "moving" ? 0.28 + (1 - revealProgress) * 0.72 : 0;
-    const filtersActive = frame.visible && (frame.state !== "arrived" || arrivalAge < 180);
+    // Keep filters alive until the reveal curve has fully completed.
+    const filtersActive = frame.visible && (frame.state !== "arrived" || revealProgress < 0.999);
 
     this.revealFilter.enabled = filtersActive;
     this.ghostRevealFilter.enabled = filtersActive;

@@ -1,126 +1,137 @@
 import type { GeometryPiece, Point } from "../geometry/models";
 import type { MappedNoteEvent } from "../midi/event-models";
-import type { PuzzlePieceAssignment } from "../puzzle/puzzle-event-models";
 import type { AnimationSource, AnimationTimeline, PieceAnimation } from "./models";
 import { normalizeAnimationTiming } from "./models";
 import { travelDuration } from "./piece-animation";
 import { applyExpressionToAnimation } from "./expression-adapter";
+import { createMotionPathParams, type MotionPathShaping } from "./motion-path";
+import { scheduleRevealOrder, type RevealSlot } from "./reveal-scheduler";
+import { SeededRandom, hashSeed } from "../fx/seeded-random";
 
-/* ---------- seeded PRNG (mulberry32) for deterministic randomness ---------- */
-function mulberry32(seed: number): () => number {
-  let s = seed | 0;
-  return () => {
-    s = (s + 0x6d2b79f5) | 0;
-    let t = Math.imul(s ^ (s >>> 15), 1 | s);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-function simpleHash(str: string): number {
-  let h = 2166136261;
-  for (let i = 0; i < str.length; i++) {
-    h ^= str.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return h >>> 0;
-}
-
-/* ---------- random spawn generation ---------- */
-
-/** Generate a random spawn point around the edges of the bounding box. */
-function randomEdgeSpawn(pieces: GeometryPiece[], rand: () => number): Point {
-  if (!pieces.length) return { x: 0, y: 0 };
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-  for (const p of pieces) {
-    const tx = p.targetPosition.x, ty = p.targetPosition.y;
-    if (tx < minX) minX = tx;
-    if (ty < minY) minY = ty;
-    if (tx > maxX) maxX = tx;
-    if (ty > maxY) maxY = ty;
-  }
-  const pad = 220;
-  minX -= pad; minY -= pad; maxX += pad; maxY += pad;
-  const w = maxX - minX, h = maxY - minY;
-  const edge = Math.floor(rand() * 4);
-  switch (edge) {
-    case 0: return { x: minX + rand() * w, y: minY - rand() * pad * 0.6 };       // top
-    case 1: return { x: maxX + rand() * pad * 0.6, y: minY + rand() * h };       // right
-    case 2: return { x: minX + rand() * w, y: maxY + rand() * pad * 0.6 };       // bottom
-    default: return { x: minX - rand() * pad * 0.6, y: minY + rand() * h };      // left
-  }
-}
-
-/** Compute a Bézier control point that pulls the path off the straight line. */
-function computeControlPoint(
-  from: Point,
-  to: Point,
-  curvature: number,
-  rand: () => number
+/**
+ * Deterministic sub-pixel jitter around the key so simultaneous notes on the
+ * same key do not emit from a mathematically identical point. The offset is a
+ * few px at most, so the origin is still unmistakably ON the key.
+ */
+function jitteredKeyPoint(
+  spawnPoint: Point,
+  jitterPx: number,
+  seedParts: readonly (string | number)[]
 ): Point {
-  const dx = to.x - from.x;
-  const dy = to.y - from.y;
-  const dist = Math.hypot(dx, dy) || 1;
-  const nx = -dy / dist;
-  const ny = dx / dist;
-  const side = rand() > 0.5 ? 1 : -1;
-  const bend = dist * 0.32 * curvature * side * (0.6 + rand() * 0.8);
-  return {
-    x: (from.x + to.x) / 2 + nx * bend,
-    y: (from.y + to.y) / 2 + ny * bend
-  };
+  if (jitterPx <= 0) return spawnPoint;
+  const rng = new SeededRandom(hashSeed(...seedParts, "spawn"));
+  return { x: spawnPoint.x + rng.signed(jitterPx), y: spawnPoint.y + rng.signed(jitterPx) };
 }
 
-/* ---------- main ---------- */
+function controlPointOf(path: { controlX: number; controlY: number }): Point {
+  return { x: path.controlX, y: path.controlY };
+}
 
 export function buildAnimationTimeline(source: AnimationSource): AnimationTimeline {
   const settings = normalizeAnimationTiming(source.timing);
-  const eventById = new Map(source.mapping.events.map((event) => [event.id, event]));
-  const pieceById = new Map(source.pieces.map((piece) => [piece.id, piece]));
+  const eventById = new Map<string, MappedNoteEvent>(
+    source.mapping.events.map((event) => [event.id, event])
+  );
+  const pieceById = new Map<string, GeometryPiece>(
+    source.pieces.map((piece) => [piece.id, piece])
+  );
 
-  // Shared PRNG seeded from assignments for deterministic randomness
-  const seed = simpleHash(source.mapping.assignments.map(a => a.id).join(",") || "default");
-  const rand = mulberry32(seed);
+  /* ---------------------------------------------------------------- *
+   * Pass 1 — collect animatable slots.
+   *
+   * A note is animatable ONLY if it has a projected key point. There is no
+   * bounding-box fallback any more: the origin of an effect is always the
+   * real piano key, never a random edge.
+   * ---------------------------------------------------------------- */
+  const slots: RevealSlot[] = [];
+  let skippedWithoutKey = 0;
 
-  // Collect raw animations first (to allow random re-ordering)
-  const rawAnimations: PieceAnimation[] = [];
-  const perPieceEnd = new Map<string, number>();
-
-  for (const assignment of source.mapping.assignments) {
+  for (let index = 0; index < source.mapping.assignments.length; index += 1) {
+    const assignment = source.mapping.assignments[index];
     const event = eventById.get(assignment.noteEventId);
     const piece = pieceById.get(assignment.pieceId);
     if (!event || !piece) continue;
+    if (!event.spawnPoint) { skippedWithoutKey += 1; continue; }
+    slots.push({
+      assignmentId: assignment.id,
+      noteEventId: event.id,
+      startTimeMs: event.startTimeMs,
+      pieceId: assignment.pieceId,
+      orderIndex: index
+    });
+  }
 
-    // Determine spawn position
-    let spawnPosition: Point;
-    if (settings.randomSpawn) {
-      spawnPosition = randomEdgeSpawn(source.pieces, rand);
-    } else {
-      if (!event.spawnPoint) continue;
-      spawnPosition = event.spawnPoint;
-    }
+  /* ---------------------------------------------------------------- *
+   * Pass 2 — randomize ARRIVAL ORDER only.
+   *
+   * The scheduler permutes which piece each musical slot delivers. Note
+   * start-times are never modified, so the sound-to-visual binding holds:
+   * the effect still erupts from the correct key at the correct instant.
+   * ---------------------------------------------------------------- */
+  const schedule = scheduleRevealOrder(slots, pieceById, {
+    mode: settings.revealOrderMode,
+    seed: hashSeed(settings.pathSeed, source.mapping.generatedAt, slots.length),
+    zoneRows: settings.revealZoneRows,
+    zoneCols: settings.revealZoneCols
+  });
+
+  /* ---------------------------------------------------------------- *
+   * Pass 3 — build the animations.
+   * ---------------------------------------------------------------- */
+  const shaping: MotionPathShaping = {
+    kind: settings.motionPathKind,
+    curvature: settings.pathCurvature,
+    orbitStrength: settings.orbitStrength,
+    spiralStrength: settings.spiralStrength,
+    waveStrength: settings.waveStrength,
+    turbulence: settings.turbulence,
+    overshootPx: settings.overshootPx
+  };
+
+  const animations: PieceAnimation[] = [];
+  const perPieceEnd = new Map<string, number>();
+
+  for (const slot of slots) {
+    const event = eventById.get(slot.noteEventId);
+    const piece = pieceById.get(slot.pieceId);
+    if (!event || !piece || !event.spawnPoint) continue;
+
+    // ORIGIN: the real projected piano key of THIS note.
+    const spawnPosition = jitteredKeyPoint(
+      event.spawnPoint,
+      settings.spawnJitterPx,
+      [settings.pathSeed, slot.assignmentId]
+    );
 
     const durationMs = travelDuration(event, settings);
     let startTimeMs = event.startTimeMs + settings.preHitDelayMs;
-
-    // Compute Bézier control point for curved motion
-    const controlPoint = computeControlPoint(spawnPosition, piece.targetPosition, settings.pathCurvature, rand);
 
     if (settings.overlapMode === "queue") {
       startTimeMs = Math.max(startTimeMs, perPieceEnd.get(piece.id) ?? 0);
     }
     if (settings.overlapMode === "replace") {
-      for (const item of rawAnimations) {
+      for (const item of animations) {
         if (item.pieceId === piece.id && item.startTimeMs >= startTimeMs) item.state = "cancelled";
       }
     }
+
+    // TARGET: the piece's own targetPosition. Untouched, exactly as before.
+    const motionPath = createMotionPathParams(
+      spawnPosition.x,
+      spawnPosition.y,
+      piece.targetPosition.x,
+      piece.targetPosition.y,
+      shaping,
+      [settings.pathSeed, slot.assignmentId, piece.id],
+      event.midiNote
+    );
 
     const endTimeMs = startTimeMs + durationMs + settings.postHitHoldMs;
     perPieceEnd.set(piece.id, endTimeMs);
 
     const base: PieceAnimation = {
-      id: `animation-${assignment.id}`,
-      assignmentId: assignment.id,
+      id: `animation-${slot.assignmentId}`,
+      assignmentId: slot.assignmentId,
       pieceId: piece.id,
       midiNote: event.midiNote,
       startTimeMs,
@@ -131,7 +142,11 @@ export function buildAnimationTimeline(source: AnimationSource): AnimationTimeli
       state: "scheduled",
       spawnPosition,
       targetPosition: piece.targetPosition,
-      controlPoint,
+      controlPoint: controlPointOf(motionPath),
+      motionPath,
+      revealStartProgress: settings.revealStartProgress,
+      travelRevealCeiling: settings.travelRevealCeiling,
+      arrivalRevealDurationMs: settings.arrivalRevealDurationMs,
       currentPosition: spawnPosition,
       rotation: 0,
       scale: 1,
@@ -142,35 +157,23 @@ export function buildAnimationTimeline(source: AnimationSource): AnimationTimeli
       visible: false
     };
 
-    rawAnimations.push(applyExpressionToAnimation(base, source.expression?.noteExpressions.get(assignment.id)));
+    animations.push(
+      applyExpressionToAnimation(base, source.expression?.noteExpressions.get(slot.assignmentId))
+    );
   }
 
-  // Optionally randomize arrival order by shuffling start-times among animations.
-  // This preserves the original MIDI timing distribution so the puzzle finishes
-  // at the same time as the last note, but pieces arrive in random order.
-  if (settings.randomOrder && rawAnimations.length > 1) {
-    // Collect original start times
-    const shuffledStarts = rawAnimations.map((a) => a.startTimeMs);
-    // Fisher-Yates shuffle the start times
-    for (let i = shuffledStarts.length - 1; i > 0; i--) {
-      const j = Math.floor(rand() * (i + 1));
-      [shuffledStarts[i], shuffledStarts[j]] = [shuffledStarts[j], shuffledStarts[i]];
-    }
-    // Re-assign shuffled start times and recalculate end times
-    for (let i = 0; i < rawAnimations.length; i++) {
-      rawAnimations[i].startTimeMs = shuffledStarts[i];
-      rawAnimations[i].endTimeMs = shuffledStarts[i] + rawAnimations[i].durationMs + settings.postHitHoldMs;
-    }
+  let totalDurationMs = source.mapping.events.reduce(
+    (max, event) => Math.max(max, event.startTimeMs + event.durationMs),
+    0
+  );
+  for (const animation of animations) {
+    if (animation.endTimeMs > totalDurationMs) totalDurationMs = animation.endTimeMs;
   }
-
-  const animations: PieceAnimation[] = rawAnimations;
 
   return {
     animations,
-    totalDurationMs: Math.max(
-      source.mapping.events.reduce((m, event) => Math.max(m, event.startTimeMs + event.durationMs), 0),
-      ...animations.map((a) => a.endTimeMs),
-      0
-    )
+    totalDurationMs,
+    revealOrderReassigned: schedule.reassigned,
+    skippedWithoutKey
   };
 }

@@ -579,7 +579,7 @@ export function App() {
     const now = performance.now();
     const deltaSeconds = Math.min(0.05, Math.max(0, (now - lastFxTickTimeRef.current) / 1000));
     lastFxTickTimeRef.current = now;
-    const frames = engineRef.current.evaluate(clockRef.current.currentTimeMs);
+    const frames = engineRef.current.evaluateInto(clockRef.current.currentTimeMs) as PieceAnimationFrame[];
     framesRef.current = frames;
     rendererRef.current?.update(frames, puzzleTransformRef.current.k, timingRef.current, clockRef.current.currentTimeMs);
     if (debugLayerRef.current) { const visible = timingRef.current.debugVisible || expressionRef.current.debugVisible; debugLayerRef.current.visible = visible; if (visible) updateDebugOverlay(frames); }
@@ -613,7 +613,7 @@ export function App() {
       }
       previousStates.set(frame.pieceId, frame.state);
     }
-    fxRef.current?.update(deltaSeconds, currentTimeMs, frames as FxAnimationFrame[]);
+    fxRef.current?.update(deltaSeconds, currentTimeMs, [...frames] as unknown as FxAnimationFrame[]);
     // Ensure FX layer is always on top
     if (fxRef.current && puzzlePixi.current) {
       const stage = puzzlePixi.current.stage;
@@ -679,13 +679,13 @@ export function App() {
     } else {
       expressionResultRef.current = undefined;
       projectedMappingRef.current = undefined;
-      engineRef.current.timeline = { animations: [], totalDurationMs: 0 };
+      engineRef.current.timeline = { animations: [], totalDurationMs: 0, revealOrderReassigned: 0, skippedWithoutKey: 0 };
       clockRef.current.setTotalDuration(0);
       setTimelineInfo({ count: 0, totalDurationMs: 0 });
     }
     rebuildPuzzleRenderer();
     rebuildPianoBackground(puzzleTransformRef.current.k);
-    const frames = engineRef.current.evaluate(clockRef.current.currentTimeMs);
+    const frames = engineRef.current.evaluateInto(clockRef.current.currentTimeMs) as PieceAnimationFrame[];
     framesRef.current = frames;
     rendererRef.current?.update(frames, puzzleTransformRef.current.k, timingRef.current, clockRef.current.currentTimeMs);
     setDebugFrames(frames);
