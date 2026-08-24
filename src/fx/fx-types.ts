@@ -117,7 +117,7 @@ export const DEFAULT_VISUAL_FX_CONFIG: VisualFxConfig = {
   trailEnabled: true,
   trailLength: 0.72,
   particleDensity: 0.85,
-  particleLifetimeMs: 850,
+  particleLifetimeMs: 550,
   impactIntensity: 0.35,
   palette: "artwork",
   preset: "stardust-stream",
@@ -140,11 +140,11 @@ pathStyle: "sequential" as FxPathStyle,
   lightTrailEnabled: true,
   lightTrailWidth: 14,
   lightTrailGlowLayers: 3,
-  lightTrailLifetimeMs: 1200,
+  lightTrailLifetimeMs: 700,
   lightTrailCoreBrightness: 0.95,
-  lockFadeDurationMs: 480,
-  trailFadeSpeed: 0.55,
-  impactDurationMs: 650
+  lockFadeDurationMs: 320,
+  trailFadeSpeed: 0.35,
+  impactDurationMs: 420
 };
 
 export function clamp(value: number, min = 0, max = 1): number {

@@ -164,7 +164,7 @@ export class VisualFxEngine {
       this.tryAcquireParticle(
         event.position,
         { x: this.random.signed(5), y: -this.random.range(4, 12) },
-        Math.min(480, this.config.particleLifetimeMs * 1.35),
+        this.config.particleLifetimeMs * 1.35,
         color,
         this.config.particleSize * (textureId === "light-streak" ? 0.42 : 0.75) * (0.55 + event.normalizedVelocity * 0.5),
         textureId,
@@ -961,7 +961,7 @@ export class VisualFxEngine {
       this.tryAcquireParticle(
         { x: position.x, y: position.y },
         { x: Math.cos(angle) * (18 + intensity * 22), y: Math.sin(angle) * (18 + intensity * 22) },
-        Math.min(500, this.config.particleLifetimeMs + 100),
+        this.config.particleLifetimeMs + 100,
         color,
         this.adjustedParticleSize() * tuning.particleScale * (0.55 + intensity * 0.9),
         "spark-cross"
