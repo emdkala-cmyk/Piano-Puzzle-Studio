@@ -240,11 +240,11 @@ export function App() {
       <div class="control-row"><button type="button" data-fx-action="reset" class="ghost-button">Reset FX Settings</button><button type="button" data-fx-action="demo" class="ghost-button" id="fx-demo-btn">Run Demo Scene</button></div>
       <div class="fx-section"><h4 class="fx-section-title">💾 Save Custom Preset</h4>
         <label class="range-label">Preset Name <input id="custom-preset-name" type="text" placeholder="My Preset" style="width:120px;padding:4px 8px;background:#0a0e1c;border:1px solid #39436f;border-radius:6px;color:#f5f7ff;font-size:11px;"></label>
-        <button id="save-custom-preset" type="button" class="ghost-button" style="margin-top:6px;">Save Preset</button>
+        <button type="button" data-fx-action="save-preset" class="ghost-button" style="margin-top:6px;">Save Preset</button>
       </div>
       <div class="fx-section"><h4 class="fx-section-title">📂 Load Custom Preset</h4>
         <label class="range-label">Select Preset<select id="custom-preset-select" style="width:140px;padding:4px 8px;background:#0a0e1c;border:1px solid #39436f;border-radius:6px;color:#f5f7ff;font-size:11px;"><option value="">-- none --</option></select></label>
-        <div class="control-row" style="margin-top:6px;"><button id="load-custom-preset" type="button" class="ghost-button">Load</button><button id="delete-custom-preset" type="button" class="ghost-button" style="color:#ff6b6b;">Delete</button></div>
+        <div class="control-row" style="margin-top:6px;"><button type="button" data-fx-action="load-preset" class="ghost-button">Load</button><button type="button" data-fx-action="delete-preset" class="ghost-button" style="color:#ff6b6b;">Delete</button></div>
       </div>
       <div class="debug-grid"><span>Active particles</span><strong data-fx-stat="activeParticles">0</strong><span>Particle capacity</span><strong data-fx-stat="maxActiveParticles">0</strong><span>Active smoke</span><strong data-fx-stat="activeSmoke">0</strong><span>Smoke capacity</span><strong data-fx-stat="maxActiveSmoke">0</strong><span>Smoke layers</span><strong data-fx-stat="smokeLayerCount">3</strong><span>Emitted particles/frame</span><strong data-fx-stat="emittedParticles">0</strong><span>Emitted smoke/frame</span><strong data-fx-stat="emittedSmoke">0</strong><span>Particle budget/frame</span><strong data-fx-stat="particleFrameBudget">24</strong><span>Smoke budget/frame</span><strong data-fx-stat="smokeFrameBudget">12</strong><span>Estimated FPS</span><strong data-fx-stat="estimatedFps">60</strong><span>Dropped particles</span><strong data-fx-stat="droppedParticles">0</strong><span>Dropped smoke</span><strong data-fx-stat="droppedSmoke">0</strong><span>Dropped: pool capacity</span><strong data-fx-stat="droppedByPoolCapacity">0</strong><span>Dropped: frame budget</span><strong data-fx-stat="droppedByFrameBudget">0</strong><span>Dropped: invalid event</span><strong data-fx-stat="droppedByInvalidEvent">0</strong><span>Dropped: inactive state</span><strong data-fx-stat="droppedByInactiveState">0</strong><span>Last FX event</span><strong data-fx-stat="lastFxEvent">none</strong></div>`;
 
@@ -295,6 +295,52 @@ export function App() {
     const onPanelClick = (event: Event) => {
       const action = (event.target as HTMLElement).dataset.fxAction;
       if (action === "reset") setFxSettings(DEFAULT_VISUAL_FX_CONFIG);
+      if (action === "save-preset") {
+        const nameInput = document.getElementById("custom-preset-name") as HTMLInputElement | null;
+        const name = nameInput?.value?.trim();
+        if (!name) { alert("نام پریست را وارد کنید"); return; }
+        const current = fxSettingsRef.current;
+        const newPresets = { ...customPresetsRef.current, [name]: current };
+        setCustomPresets(newPresets);
+        localStorage.setItem("piano-puzzle-custom-presets", JSON.stringify(newPresets));
+        if (nameInput) nameInput.value = "";
+        // Refresh preset dropdown
+        const sel = document.getElementById("custom-preset-select") as HTMLSelectElement | null;
+        if (sel) {
+          const prev = sel.value;
+          sel.innerHTML = '<option value="">-- none --</option>';
+          for (const n of Object.keys(newPresets)) {
+            const opt = document.createElement("option");
+            opt.value = n; opt.textContent = n;
+            sel.appendChild(opt);
+          }
+          if (prev && newPresets[prev]) sel.value = prev;
+        }
+      }
+      if (action === "load-preset") {
+        const sel = document.getElementById("custom-preset-select") as HTMLSelectElement | null;
+        const name = sel?.value;
+        if (!name || !customPresetsRef.current[name]) { alert("یک پریست انتخاب کنید"); return; }
+        setFxSettings((prev) => ({ ...prev, ...customPresetsRef.current[name] } as VisualFxConfig));
+      }
+      if (action === "delete-preset") {
+        const sel = document.getElementById("custom-preset-select") as HTMLSelectElement | null;
+        const name = sel?.value;
+        if (!name || !customPresetsRef.current[name]) { alert("یک پریست انتخاب کنید"); return; }
+        if (!confirm(`پریست "${name}" حذف شود؟`)) return;
+        const { [name]: _, ...rest } = customPresetsRef.current;
+        setCustomPresets(rest);
+        localStorage.setItem("piano-puzzle-custom-presets", JSON.stringify(rest));
+        // Refresh dropdown
+        if (sel) {
+          sel.innerHTML = '<option value="">-- none --</option>';
+          for (const n of Object.keys(rest)) {
+            const opt = document.createElement("option");
+            opt.value = n; opt.textContent = n;
+            sel.appendChild(opt);
+          }
+        }
+      }
       if (action === "demo") {
         const btn = document.getElementById("fx-demo-btn");
         const isRunning = fxRef.current?.isDemoActive?.();
@@ -321,57 +367,6 @@ export function App() {
     panel.addEventListener("input", onInput);
     panel.addEventListener("change", onInput);
     panel.addEventListener("click", onPanelClick);
-    // Populate preset select dropdown
-    const presetSelect = document.getElementById("custom-preset-select") as HTMLSelectElement | null;
-    const refreshPresetList = () => {
-      if (!presetSelect) return;
-      const prev = presetSelect.value;
-      presetSelect.innerHTML = '<option value="">-- none --</option>';
-      for (const name of Object.keys(customPresetsRef.current)) {
-        const opt = document.createElement("option");
-        opt.value = name; opt.textContent = name;
-        presetSelect.appendChild(opt);
-      }
-      if (prev && customPresetsRef.current[prev]) presetSelect.value = prev;
-    };
-    refreshPresetList();
-
-    // Save custom preset button
-    const saveBtn = document.getElementById("save-custom-preset");
-    const nameInput = document.getElementById("custom-preset-name") as HTMLInputElement | null;
-    const onSavePreset = () => {
-      const name = nameInput?.value?.trim();
-      if (!name) { alert("Please enter a preset name"); return; }
-      const current = fxSettingsRef.current;
-      const newPresets = { ...customPresetsRef.current, [name]: current };
-      setCustomPresets(newPresets);
-      localStorage.setItem("piano-puzzle-custom-presets", JSON.stringify(newPresets));
-      if (nameInput) nameInput.value = "";
-      refreshPresetList();
-    };
-    saveBtn?.addEventListener("click", onSavePreset);
-
-    // Load custom preset
-    const loadBtn = document.getElementById("load-custom-preset");
-    const onLoadPreset = () => {
-      const name = presetSelect?.value;
-      if (!name || !customPresetsRef.current[name]) { alert("یک پریست انتخاب کنید"); return; }
-      setFxSettings((prev) => ({ ...prev, ...customPresetsRef.current[name] } as VisualFxConfig));
-    };
-    loadBtn?.addEventListener("click", onLoadPreset);
-
-    // Delete custom preset
-    const deleteBtn = document.getElementById("delete-custom-preset");
-    const onDeletePreset = () => {
-      const name = presetSelect?.value;
-      if (!name || !customPresetsRef.current[name]) { alert("یک پریست انتخاب کنید"); return; }
-      if (!confirm(`پریست "${name}" حذف شود؟`)) return;
-      const { [name]: _, ...rest } = customPresetsRef.current;
-      setCustomPresets(rest);
-      localStorage.setItem("piano-puzzle-custom-presets", JSON.stringify(rest));
-      refreshPresetList();
-    };
-    deleteBtn?.addEventListener("click", onDeletePreset);
 
     panel.addEventListener("wheel", (e) => {
       const target = e.target as HTMLInputElement;
@@ -410,7 +405,7 @@ export function App() {
     tabs.appendChild(fxTab);
     inspector.appendChild(panel);
     syncControls();
-    return () => { saveBtn?.removeEventListener("click", onSavePreset); fxTab.removeEventListener("click", onTabsClick); tabs.removeEventListener("click", onTabsClick); panel.removeEventListener("input", onInput); panel.removeEventListener("change", onInput); panel.removeEventListener("click", onPanelClick); fxTab.remove(); panel.remove(); };
+    return () => { fxTab.removeEventListener("click", onTabsClick); tabs.removeEventListener("click", onTabsClick); panel.removeEventListener("input", onInput); panel.removeEventListener("change", onInput); panel.removeEventListener("click", onPanelClick); fxTab.remove(); panel.remove(); };
   }, []);
 
   useEffect(() => {
