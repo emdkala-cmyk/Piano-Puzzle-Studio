@@ -1,7 +1,7 @@
 import electron from "electron";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { chooseAsset } from "./asset-service.js";
+import { chooseAsset, readAssetByPath } from "./asset-service.js";
 
 const { app, BrowserWindow, ipcMain } = electron;
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -30,6 +30,8 @@ function createWindow() {
 app.whenReady().then(() => {
   ipcMain.handle("app:info", () => ({ name: "Piano Puzzle Studio", version: app.getVersion() }));
   ipcMain.handle("asset:choose", (_event, type: "image" | "midi" | "audio") => chooseAsset(type));
+  // 🧪 TEST: Read file by path (DELETE AFTER TESTING)
+  ipcMain.handle("asset:read-by-path", (_event, filePath: string) => readAssetByPath(filePath));
   createWindow();
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
