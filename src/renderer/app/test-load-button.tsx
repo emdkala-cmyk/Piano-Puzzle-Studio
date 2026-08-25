@@ -4,11 +4,30 @@
  */
 
 const TEST_DIR = "C:/Users/MEHDI/Desktop/test";
+const BROWSER_TEST_BASE = "/test";
+const MIME_MAP: Record<string, string> = { jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", mid: "audio/midi", midi: "audio/midi" };
 
 async function readFileByPath(filePath: string) {
-  const result = await (window as any).pianoPuzzle?.readAssetByPath(filePath);
-  if (!result) throw new Error("Failed to read: " + filePath);
-  return result;
+  // Try Electron API first
+  const electronResult = await (window as any).pianoPuzzle?.readAssetByPath(filePath);
+  if (electronResult) return electronResult;
+  // Browser fallback: fetch from public/test/
+  const fileName = filePath.split("/").pop() ?? filePath;
+  const ext = fileName.split(".").pop()?.toLowerCase() ?? "";
+  const mime = MIME_MAP[ext] ?? "application/octet-stream";
+  const resp = await fetch(`${BROWSER_TEST_BASE}/${fileName}`);
+  if (!resp.ok) throw new Error("Failed to fetch: " + fileName + " (" + resp.status + ")");
+  const blob = await resp.blob();
+  const base64 = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = String(reader.result);
+      resolve(dataUrl.split(",")[1] ?? "");
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+  return { filePath: fileName, fileName, mimeType: mime, fileSize: blob.size, dataBase64: base64 };
 }
 
 function sleep(ms: number) {

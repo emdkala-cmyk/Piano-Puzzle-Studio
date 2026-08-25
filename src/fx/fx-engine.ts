@@ -496,6 +496,7 @@ export class VisualFxEngine {
     // Lighting disabled for performance
 
     this.keyboardGlow.setPaused(this.paused);
+    this.keyboardGlow.applySettings(this.config.keyboardGlowLineWidth, this.config.keyboardGlowGlowHeight, this.config.keyboardGlowAmbientAlpha, this.config.keyboardGlowDecaySpeed, this.config.keyboardGlowIntensity);
     this.keyboardGlow.update(deltaSeconds, this.config.keyboardGlowEnabled && this.config.enabled, this.config.keyboardGlowIntensity);
     this.glowController.update(deltaMs);
     this.impactEffect.update(deltaMs);

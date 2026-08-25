@@ -37,11 +37,11 @@ pathStyle: FxPathStyle;
   particleMotion: FxParticleMotion;
   customColor: string;
 keyboardGlowEnabled: boolean;
-  keyboardGlowIntensity: number;
-  keyboardGlowLineWidth: number;
-  keyboardGlowGlowHeight: number;
-  keyboardGlowAmbientAlpha: number;
-  keyboardGlowDecaySpeed: number;
+  keyboardGlowThickness: number;
+  keyboardGlowSpread: number;
+  keyboardGlowSoftness: number;
+  keyboardGlowDissolveSpeed: number;
+  keyboardGlowPulseAmount: number;
   lightTrailEnabled: boolean;
   lightTrailWidth: number;
   lightTrailGlowLayers: number;
@@ -140,11 +140,11 @@ pathStyle: "scattered" as FxPathStyle,
   particleMotion: "curved" as FxParticleMotion,
   customColor: "#ff6600",
   keyboardGlowEnabled: true,
-  keyboardGlowIntensity: 0.75,
-  keyboardGlowLineWidth: 3,
-  keyboardGlowGlowHeight: 80,
-  keyboardGlowAmbientAlpha: 0.5,
-  keyboardGlowDecaySpeed: 1.4,
+  keyboardGlowThickness: 4,
+  keyboardGlowSpread: 60,
+  keyboardGlowSoftness: 0.7,
+  keyboardGlowDissolveSpeed: 1.5,
+  keyboardGlowPulseAmount: 0.4,
   lightTrailEnabled: true,
   lightTrailWidth: 10,
   lightTrailGlowLayers: 2,
