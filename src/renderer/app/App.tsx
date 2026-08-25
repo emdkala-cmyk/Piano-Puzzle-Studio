@@ -256,16 +256,21 @@ export function App() {
       </div>
       <div class="fx-section"><h4 class="fx-section-title">🎹 Keyboard</h4>
         <label class="toggle-row"><span>Keyboard Glow</span><input data-fx="keyboardGlowEnabled" type="checkbox"></label>
-        <label class="range-label">Glow Intensity <input data-fx-value="keyboardGlowIntensity" type="text" class="fx-value-input"></label>
-        <input data-fx="keyboardGlowIntensity" type="range" min="0" max="1" step="0.01">
-        <label class="range-label">Line Width <input data-fx-value="keyboardGlowLineWidth" type="text" class="fx-value-input"></label>
-        <input data-fx="keyboardGlowLineWidth" type="range" min="1" max="12" step="1">
-        <label class="range-label">Glow Height <input data-fx-value="keyboardGlowGlowHeight" type="text" class="fx-value-input"></label>
-        <input data-fx="keyboardGlowGlowHeight" type="range" min="10" max="200" step="5">
-        <label class="range-label">Ambient Alpha <input data-fx-value="keyboardGlowAmbientAlpha" type="text" class="fx-value-input"></label>
-        <input data-fx="keyboardGlowAmbientAlpha" type="range" min="0" max="1" step="0.01">
-        <label class="range-label">Decay Speed <input data-fx-value="keyboardGlowDecaySpeed" type="text" class="fx-value-input"></label>
-        <input data-fx="keyboardGlowDecaySpeed" type="range" min="0.2" max="5" step="0.1">
+        <label class="range-label">Line Thickness <input data-fx-value="keyboardGlowThickness" type="text" class="fx-value-input"></label>
+        <input data-fx="keyboardGlowThickness" type="range" min="0.5" max="20" step="0.5">
+        <small class="anchor-hint">ضخامت هسته‌ی خط نئونی</small>
+        <label class="range-label">Glow Spread <input data-fx-value="keyboardGlowSpread" type="text" class="fx-value-input"></label>
+        <input data-fx="keyboardGlowSpread" type="range" min="5" max="250" step="5">
+        <small class="anchor-hint">شعاع گسترش هاله‌ی اطراف خط</small>
+        <label class="range-label">Edge Softness <input data-fx-value="keyboardGlowSoftness" type="text" class="fx-value-input"></label>
+        <input data-fx="keyboardGlowSoftness" type="range" min="0" max="1" step="0.01">
+        <small class="anchor-hint">۰ = لبه تیز، ۱ = گرادیانت نرم</small>
+        <label class="range-label">Dissolve Speed <input data-fx-value="keyboardGlowDissolveSpeed" type="text" class="fx-value-input"></label>
+        <input data-fx="keyboardGlowDissolveSpeed" type="range" min="0.1" max="8" step="0.1">
+        <small class="anchor-hint">سرعت محو شدن beam‌ها</small>
+        <label class="range-label">Pulse Amount <input data-fx-value="keyboardGlowPulseAmount" type="text" class="fx-value-input"></label>
+        <input data-fx="keyboardGlowPulseAmount" type="range" min="0" max="1" step="0.01">
+        <small class="anchor-hint">شدت نوسان نفس‌خط (breathing)</small>
       </div>
       <div class="control-row"><button type="button" data-fx-action="reset" class="ghost-button">Reset FX Settings</button><button type="button" data-fx-action="demo" class="ghost-button" id="fx-demo-btn">Run Demo Scene</button></div>
       <div class="fx-section"><h4 class="fx-section-title">💾 Save Custom Preset</h4>

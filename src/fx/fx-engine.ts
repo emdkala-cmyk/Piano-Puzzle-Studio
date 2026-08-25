@@ -173,7 +173,7 @@ export class VisualFxEngine {
     }
     // Lighting disabled for performance
     if (this.config.keyboardGlowEnabled) {
-      this.keyboardGlow.hitKeyByNote(event.midiNote, color, this.config.keyboardGlowIntensity * (0.35 + event.normalizedVelocity * 0.65));
+      this.keyboardGlow.hitKeyByNote(event.midiNote, color, 0.35 + event.normalizedVelocity * 0.65);
     }
     this.lastEvent = `note-on:${event.midiNote}`;
   }
@@ -496,8 +496,8 @@ export class VisualFxEngine {
     // Lighting disabled for performance
 
     this.keyboardGlow.setPaused(this.paused);
-    this.keyboardGlow.applySettings(this.config.keyboardGlowLineWidth, this.config.keyboardGlowGlowHeight, this.config.keyboardGlowAmbientAlpha, this.config.keyboardGlowDecaySpeed, this.config.keyboardGlowIntensity);
-    this.keyboardGlow.update(deltaSeconds, this.config.keyboardGlowEnabled && this.config.enabled, this.config.keyboardGlowIntensity);
+    this.keyboardGlow.applySettings(this.config.keyboardGlowThickness, this.config.keyboardGlowSpread, this.config.keyboardGlowSoftness, this.config.keyboardGlowDissolveSpeed, this.config.keyboardGlowPulseAmount, 1.0);
+    this.keyboardGlow.update(deltaSeconds, this.config.keyboardGlowEnabled && this.config.enabled, 1.0);
     this.glowController.update(deltaMs);
     this.impactEffect.update(deltaMs);
     this.lightTrail.setPaused(this.paused);
