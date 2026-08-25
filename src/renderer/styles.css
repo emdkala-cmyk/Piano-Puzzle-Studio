@@ -21,3 +21,16 @@
 .fx-section{margin:12px 0 8px;padding:10px 12px;background:#10152b;border:1px solid #2d355d;border-radius:10px}.fx-section-title{margin:0 0 8px;font-size:12px;color:#8ec9ff;font-weight:600;border-bottom:1px solid #2d355d;padding-bottom:6px}
 .preview{display:flex;flex-direction:column}.preview .canvas-frame{order:0;margin-top:0}.preview .panel-heading{order:1}.preview .preview-tabs{order:2}.preview .control-row{order:3}.preview .transport{order:4}.preview .muted{order:5}.preview .anchor-hint{order:6}
 .studio-shell{height:100vh;display:flex;flex-direction:column}.workspace{flex:1;min-height:0;grid-template-rows:1fr}.sidebar,.inspector{max-height:100%;overflow-y:auto;overscroll-behavior:contain}
+
+/* Viewfinder corners for render frame preview */
+.viewfinder{position:absolute;inset:0;pointer-events:none;z-index:10}
+.viewfinder-corner{position:absolute;width:28px;height:28px}
+.viewfinder-corner::before,.viewfinder-corner::after{content:"";position:absolute;background:#55d9ff;box-shadow:0 0 8px #55d9ffaa}
+.viewfinder-corner::before{width:100%;height:2px}
+.viewfinder-corner::after{width:2px;height:100%}
+.viewfinder-tl{top:12px;left:12px}.viewfinder-tl::before{top:0;left:0}.viewfinder-tl::after{top:0;left:0}
+.viewfinder-tr{top:12px;right:12px}.viewfinder-tr::before{top:0;right:0}.viewfinder-tr::after{top:0;right:0}
+.viewfinder-bl{bottom:12px;left:12px}.viewfinder-bl::before{bottom:0;left:0}.viewfinder-bl::after{bottom:0;left:0}
+.viewfinder-br{bottom:12px;right:12px}.viewfinder-br::before{bottom:0;right:0}.viewfinder-br::after{bottom:0;right:0}
+.viewfinder-label{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);color:#55d9ff;font-size:10px;letter-spacing:.1em;opacity:.6;white-space:nowrap}
+
