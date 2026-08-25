@@ -61,6 +61,8 @@ export class KeyboardGlowController {
     }
     this.gfx.clear();
     if (!enabled) return;
+    // Persistent ambient line at the spawn line — always visible
+    this.gfx.rect(0, this.pianoTopY - 1, this.compositionWidth, 2).fill({ color: 0x55d9ff, alpha: 0.35 });
     const segWidth = this.compositionWidth / SEGMENT_COUNT;
     const baseY = this.pianoTopY;
     const halfLine = this.lineWidth / 2;
