@@ -38,6 +38,10 @@ pathStyle: FxPathStyle;
   customColor: string;
 keyboardGlowEnabled: boolean;
   keyboardGlowIntensity: number;
+  keyboardGlowLineWidth: number;
+  keyboardGlowGlowHeight: number;
+  keyboardGlowAmbientAlpha: number;
+  keyboardGlowDecaySpeed: number;
   lightTrailEnabled: boolean;
   lightTrailWidth: number;
   lightTrailGlowLayers: number;
@@ -137,6 +141,10 @@ pathStyle: "scattered" as FxPathStyle,
   customColor: "#ff6600",
   keyboardGlowEnabled: true,
   keyboardGlowIntensity: 0.75,
+  keyboardGlowLineWidth: 3,
+  keyboardGlowGlowHeight: 80,
+  keyboardGlowAmbientAlpha: 0.5,
+  keyboardGlowDecaySpeed: 1.4,
   lightTrailEnabled: true,
   lightTrailWidth: 10,
   lightTrailGlowLayers: 2,
@@ -175,6 +183,10 @@ pathStyle: ["sequential", "random", "spiral", "reverse", "scattered"].includes(m
     particleMotion: ["curved", "spiral", "linear", "orbital", "random-wobble"].includes(merged.particleMotion as string) ? merged.particleMotion as FxParticleMotion : "curved",
     customColor: typeof merged.customColor === "string" ? merged.customColor : "#ff6600",
     keyboardGlowIntensity: clamp(merged.keyboardGlowIntensity),
+    keyboardGlowLineWidth: Math.max(1, Math.min(12, Number.isFinite(merged.keyboardGlowLineWidth) ? merged.keyboardGlowLineWidth : 3)),
+    keyboardGlowGlowHeight: Math.max(10, Math.min(200, Number.isFinite(merged.keyboardGlowGlowHeight) ? merged.keyboardGlowGlowHeight : 80)),
+    keyboardGlowAmbientAlpha: clamp(merged.keyboardGlowAmbientAlpha),
+    keyboardGlowDecaySpeed: Math.max(0.2, Math.min(5, Number.isFinite(merged.keyboardGlowDecaySpeed) ? merged.keyboardGlowDecaySpeed : 1.4)),
     lightTrailWidth: Math.max(2, Math.min(40, Number.isFinite(merged.lightTrailWidth) ? merged.lightTrailWidth : DEFAULT_VISUAL_FX_CONFIG.lightTrailWidth)),
     lightTrailGlowLayers: Math.max(1, Math.min(5, Math.round(Number.isFinite(merged.lightTrailGlowLayers) ? merged.lightTrailGlowLayers : DEFAULT_VISUAL_FX_CONFIG.lightTrailGlowLayers))),
     lightTrailLifetimeMs: Math.max(200, Math.min(3000, Number.isFinite(merged.lightTrailLifetimeMs) ? merged.lightTrailLifetimeMs : DEFAULT_VISUAL_FX_CONFIG.lightTrailLifetimeMs)),

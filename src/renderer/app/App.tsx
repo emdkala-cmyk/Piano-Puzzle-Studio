@@ -251,6 +251,14 @@ export function App() {
         <label class="toggle-row"><span>Keyboard Glow</span><input data-fx="keyboardGlowEnabled" type="checkbox"></label>
         <label class="range-label">Glow Intensity <input data-fx-value="keyboardGlowIntensity" type="text" class="fx-value-input"></label>
         <input data-fx="keyboardGlowIntensity" type="range" min="0" max="1" step="0.01">
+        <label class="range-label">Line Width <input data-fx-value="keyboardGlowLineWidth" type="text" class="fx-value-input"></label>
+        <input data-fx="keyboardGlowLineWidth" type="range" min="1" max="12" step="1">
+        <label class="range-label">Glow Height <input data-fx-value="keyboardGlowGlowHeight" type="text" class="fx-value-input"></label>
+        <input data-fx="keyboardGlowGlowHeight" type="range" min="10" max="200" step="5">
+        <label class="range-label">Ambient Alpha <input data-fx-value="keyboardGlowAmbientAlpha" type="text" class="fx-value-input"></label>
+        <input data-fx="keyboardGlowAmbientAlpha" type="range" min="0" max="1" step="0.01">
+        <label class="range-label">Decay Speed <input data-fx-value="keyboardGlowDecaySpeed" type="text" class="fx-value-input"></label>
+        <input data-fx="keyboardGlowDecaySpeed" type="range" min="0.2" max="5" step="0.1">
       </div>
       <div class="control-row"><button type="button" data-fx-action="reset" class="ghost-button">Reset FX Settings</button><button type="button" data-fx-action="demo" class="ghost-button" id="fx-demo-btn">Run Demo Scene</button></div>
       <div class="fx-section"><h4 class="fx-section-title">💾 Save Custom Preset</h4>

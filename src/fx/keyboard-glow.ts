@@ -2,7 +2,6 @@ import { Container, Graphics } from "pixi.js";
 import { clamp } from "./fx-types";
 
 const SEGMENT_COUNT = 88;
-const SEGMENT_DECAY_SPEED = 1.4;
 
 interface Segment {
   intensity: number;
@@ -16,8 +15,10 @@ export class KeyboardGlowController {
   private compositionWidth = 1080;
   private compositionHeight = 1920;
   private pianoTopY = 960;
-  private lineWidth = 4;
+  private lineWidth = 3;
   private glowHeight = 80;
+  private ambientAlpha = 0.5;
+  private decaySpeed = 1.4;
   private paused = false;
 
   constructor() {
@@ -31,6 +32,13 @@ export class KeyboardGlowController {
     this.compositionWidth = width;
     this.compositionHeight = height;
     this.pianoTopY = pianoTopY;
+  }
+
+  applySettings(lineWidth: number, glowHeight: number, ambientAlpha: number, decaySpeed: number): void {
+    this.lineWidth = lineWidth;
+    this.glowHeight = glowHeight;
+    this.ambientAlpha = ambientAlpha;
+    this.decaySpeed = decaySpeed;
   }
 
   setPaused(paused: boolean): void {
@@ -56,15 +64,14 @@ export class KeyboardGlowController {
   update(deltaSeconds: number, enabled: boolean, glowIntensity: number): void {
     if (!this.paused) {
       for (const seg of this.segments) {
-        seg.intensity = Math.max(0, seg.intensity - SEGMENT_DECAY_SPEED * deltaSeconds);
+        seg.intensity = Math.max(0, seg.intensity - this.decaySpeed * deltaSeconds);
       }
     }
     this.gfx.clear();
     if (!enabled) return;
-    // Persistent ambient line at the spawn line — always visible
-    this.gfx.rect(0, this.pianoTopY - 1, this.compositionWidth, 2).fill({ color: 0x55d9ff, alpha: 0.35 });
-    const segWidth = this.compositionWidth / SEGMENT_COUNT;
     const baseY = this.pianoTopY;
+    this.gfx.rect(0, baseY - 1, this.compositionWidth, 2).fill({ color: 0x55d9ff, alpha: this.ambientAlpha });
+    const segWidth = this.compositionWidth / SEGMENT_COUNT;
     const halfLine = this.lineWidth / 2;
     for (let i = 0; i < SEGMENT_COUNT; i += 1) {
       const seg = this.segments[i];
