@@ -16,8 +16,8 @@ export class KeyboardGlowController {
   private compositionWidth = 1080;
   private compositionHeight = 1920;
   private pianoTopY = 960;
-  private lineWidth = 6;
-  private glowHeight = 48;
+  private lineWidth = 4;
+  private glowHeight = 80;
   private paused = false;
 
   constructor() {

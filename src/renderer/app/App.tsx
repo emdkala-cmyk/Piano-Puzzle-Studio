@@ -638,7 +638,8 @@ export function App() {
     if (fxRef.current) {
       fxRef.current.layer.position.set(offsetX, offsetY);
       fxRef.current.layer.scale.set(k);
-      fxRef.current.setKeyboardGlowSize(DEFAULT_LAYOUT.compositionWidth, DEFAULT_LAYOUT.compositionHeight, DEFAULT_LAYOUT.pianoRegion.y);
+      const spawnLineY = DEFAULT_LAYOUT.pianoRegion.y + 0.08 * DEFAULT_LAYOUT.pianoRegion.height;
+      fxRef.current.setKeyboardGlowSize(DEFAULT_LAYOUT.compositionWidth, DEFAULT_LAYOUT.compositionHeight, spawnLineY);
     }
     rebuildPianoBackground(k);
     rebuildPuzzleRenderer();
