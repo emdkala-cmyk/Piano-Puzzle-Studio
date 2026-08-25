@@ -36,7 +36,4 @@
 
 
 /* Ambient glow spawn line - CSS overlay positioned on puzzle preview */
-.spawn-glow-line{position:absolute;left:0;right:0;height:2px;pointer-events:none;z-index:9;transition:bottom .3s ease,opacity .3s ease}
-.spawn-glow-line::before{content:"";position:absolute;left:0;right:0;height:2px;top:-1px;background:linear-gradient(90deg,transparent 0%,#55d9ff 15%,#55d9ff 85%,transparent 100%);box-shadow:0 0 12px #55d9ff,0 0 24px #55d9ff44}
-.spawn-glow-line::after{content:"";position:absolute;left:0;right:0;height:40px;top:-40px;background:linear-gradient(180deg,transparent,#55d9ff08);pointer-events:none}
 
