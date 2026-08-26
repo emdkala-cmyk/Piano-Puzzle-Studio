@@ -205,21 +205,13 @@ export class KeyboardGlowController {
   }
 
   setKeyAnchors(anchors: KeyGlowAnchor[]): void {
-    // Detect if the glow bar has moved significantly (piano zoom/position changed)
-    const oldCy = this.keyAnchors.length > 0 ? this.keyAnchors[0].topPoint.y : -9999;
-    const oldCx = this.keyAnchors.length > 0 ? (this.keyAnchors[0].topPoint.x + this.keyAnchors[this.keyAnchors.length - 1].topPoint.x) / 2 : -9999;
+    // Always clear old particles — like note spawn points, the glow must be
+    // 100% locked to the current piano position with zero ghost traces.
+    this.fogWisps = [];
+    this.sparkles = [];
+    this.activeGlows.clear();
+
     this.keyAnchors = anchors.slice().sort((a, b) => a.topPoint.x - b.topPoint.x);
-    if (this.keyAnchors.length >= 2) {
-      const newCy = this.keyAnchors[0].topPoint.y;
-      const newCx = (this.keyAnchors[0].topPoint.x + this.keyAnchors[this.keyAnchors.length - 1].topPoint.x) / 2;
-      const moved = Math.abs(newCy - oldCy) > 2 || Math.abs(newCx - oldCx) > 2;
-      if (moved) {
-        // Clear ALL old particles so no ghost remains at the previous position
-        this.fogWisps = [];
-        this.sparkles = [];
-        this.activeGlows.clear();
-      }
-    }
     this.renderBar(1.0, this.isEnabled);
   }
 
