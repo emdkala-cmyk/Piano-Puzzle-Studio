@@ -53,6 +53,14 @@ keyboardGlowEnabled: boolean;
   trailFadeSpeed: number;
   /** Duration of the lock impact ring/shockwave effect. */
   impactDurationMs: number;
+  /** Ambient atmospheric dust — tiny particles floating in the scene like embers/dust. */
+  ambientDustEnabled: boolean;
+  /** Density of ambient dust particles (0–1). */
+  ambientDustDensity: number;
+  /** Whether effects respond to note pitch (warm colors for bass, cool for treble). */
+  toneReactiveEnabled: boolean;
+  /** Whether enhanced cinematic smoke wisps are used. */
+  cinematicSmokeEnabled: boolean;
 }
 
 export interface FxNoteEvent {
@@ -152,7 +160,11 @@ pathStyle: "scattered" as FxPathStyle,
   lightTrailCoreBrightness: 0.8,
   lockFadeDurationMs: 250,
   trailFadeSpeed: 0.3,
-  impactDurationMs: 300
+  impactDurationMs: 300,
+  ambientDustEnabled: true,
+  ambientDustDensity: 0.35,
+  toneReactiveEnabled: true,
+  cinematicSmokeEnabled: true
 };
 
 export function clamp(value: number, min = 0, max = 1): number {
@@ -193,7 +205,11 @@ pathStyle: ["sequential", "random", "spiral", "reverse", "scattered"].includes(m
     lightTrailCoreBrightness: clamp(merged.lightTrailCoreBrightness),
     lockFadeDurationMs: Math.max(40, Math.min(3000, Number.isFinite(merged.lockFadeDurationMs) ? merged.lockFadeDurationMs : DEFAULT_VISUAL_FX_CONFIG.lockFadeDurationMs)),
     trailFadeSpeed: clamp(merged.trailFadeSpeed),
-    impactDurationMs: Math.max(100, Math.min(2000, Number.isFinite(merged.impactDurationMs) ? merged.impactDurationMs : DEFAULT_VISUAL_FX_CONFIG.impactDurationMs))
+    impactDurationMs: Math.max(100, Math.min(2000, Number.isFinite(merged.impactDurationMs) ? merged.impactDurationMs : DEFAULT_VISUAL_FX_CONFIG.impactDurationMs)),
+    ambientDustEnabled: !!merged.ambientDustEnabled,
+    ambientDustDensity: clamp(merged.ambientDustDensity),
+    toneReactiveEnabled: !!merged.toneReactiveEnabled,
+    cinematicSmokeEnabled: !!merged.cinematicSmokeEnabled
   };
 }
 

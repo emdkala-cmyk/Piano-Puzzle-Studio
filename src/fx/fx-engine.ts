@@ -21,6 +21,7 @@ import { ImpactEffect } from "./impact-effect";
 import { SmokeController } from "./smoke-controller";
 import { KeyboardGlowController } from "./keyboard-glow";
 import { LightTrailController } from "./light-trail";
+import { AmbientDustSystem } from "./ambient-dust";
 import { getFxPresetTuning } from "./fx-presets";
 import { FxAssetPipeline } from "./asset-pipeline";
 import { SeededRandom } from "./seeded-random";
@@ -65,6 +66,7 @@ export class VisualFxEngine {
   private readonly smokeController = new SmokeController();
   private readonly keyboardGlow = new KeyboardGlowController();
   private readonly lightTrail = new LightTrailController();
+  private readonly ambientDust = new AmbientDustSystem();
   private readonly assetPipeline = new FxAssetPipeline();
   private readonly demoLayer = new Container();
   // ribbonRibbon removed — lightTrail handles all trail rendering via GPU mesh
@@ -106,7 +108,7 @@ export class VisualFxEngine {
   private galaxySpawnTimer = 0;
 
   constructor() {
-    this.layer.addChild(this.keyboardGlow.layer, this.demoLayer, this.lightTrail.layer, this.smokeController.layer, this.particlePool.layer, this.glowController.layer, this.impactEffect.layer);
+    this.layer.addChild(this.ambientDust.layer, this.keyboardGlow.layer, this.demoLayer, this.lightTrail.layer, this.smokeController.layer, this.particlePool.layer, this.glowController.layer, this.impactEffect.layer);
     this.layer.zIndex = 1000;
   }
 
@@ -138,11 +140,17 @@ export class VisualFxEngine {
 
   setConfig(config: Partial<VisualFxConfig>): void {
     const wasDemoActive = this.demoActive;
+    const oldPreset = this.config.preset;
     this.config = normalizeVisualFxConfig({ ...this.config, ...config });
     this.layer.visible = this.config.enabled;
     this.lightTrail.configure(this.config.lightTrailLifetimeMs, this.config.trailFadeSpeed);
     if (!this.config.enabled) this.clearTransient();
-    if (wasDemoActive) this.startDemo();
+    // Only restart demo if the preset changed — other config changes
+    // (like pathCurvature, particleDensity, etc.) are read live each frame
+    // and don't need a full restart that clears all particles/trails.
+    if (wasDemoActive && this.config.preset !== oldPreset) {
+      this.startDemo();
+    }
   }
 
   onNoteOn(event: FxNoteEvent): void {
@@ -171,9 +179,28 @@ export class VisualFxEngine {
         textureId === "light-streak" ? 0.58 : 0.68
       );
     }
+    // Ambient dust reacts to notes
+    this.ambientDust.noteHit(event.midiNote, event.normalizedVelocity);
     // Lighting disabled for performance
     if (this.config.keyboardGlowEnabled) {
       this.keyboardGlow.hitKeyByNote(event.midiNote, color, 0.35 + event.normalizedVelocity * 0.65);
+    }
+    // Tone-reactive mid-range sparkle burst
+    if (this.config.toneReactiveEnabled && this.config.particlesEnabled && behavior === "neutral") {
+      const sparkleCount = Math.round(3 + event.normalizedVelocity * 5);
+      for (let i = 0; i < sparkleCount; i++) {
+        const angle = (Math.PI * 2 * i) / sparkleCount + this.random.signed(0.4);
+        const speed = this.random.range(2, 8);
+        this.tryAcquireParticle(
+          { x: event.position.x + this.random.signed(6), y: event.position.y + this.random.signed(6) },
+          { x: Math.cos(angle) * speed, y: Math.sin(angle) * speed - 2 },
+          this.random.range(300, 800),
+          color,
+          this.config.particleSize * this.random.range(0.3, 0.8),
+          "soft-bokeh",
+          0.4 + event.normalizedVelocity * 0.3
+        );
+      }
     }
     this.lastEvent = `note-on:${event.midiNote}`;
   }
@@ -494,6 +521,10 @@ export class VisualFxEngine {
     this.impactEffect.update(deltaMs);
     this.lightTrail.setPaused(this.paused);
     this.lightTrail.update(deltaMs);
+    this.ambientDust.setEnabled(this.config.ambientDustEnabled && this.config.enabled);
+    this.ambientDust.setDensity(this.config.ambientDustDensity);
+    this.ambientDust.setToneReactive(this.config.toneReactiveEnabled);
+    this.ambientDust.update(deltaMs);
     if (!this.paused) this.particlePool.update(deltaSeconds);
     if (!this.paused) this.smokeController.update(deltaSeconds);
     if (!this.paused) {
@@ -609,6 +640,7 @@ export class VisualFxEngine {
 
     this.keyboardGlow.dispose();
     this.lightTrail.dispose();
+    this.ambientDust.dispose();
     this.assetPipeline.dispose();
     this.layer.destroy({ children: false });
   }
@@ -620,6 +652,7 @@ export class VisualFxEngine {
     this.impactEffect.clear();
     this.keyboardGlow.clear();
     this.lightTrail.clear();
+    this.ambientDust.clear();
     this.trails.clear();
     this.particleSpawnsThisFrame = 0;
     this.smokeSpawnsThisFrame = 0;
@@ -1207,6 +1240,7 @@ export class VisualFxEngine {
     if (this.config.smokeDensity <= 0.02) return;
     const tuning = getFxPresetTuning(this.config.preset);
     const smokeIntensity = this.smokeIntensityMultiplier(behavior);
+    // Core smoke
     this.tryAcquireSmoke(
       position,
       { x: this.random.signed(2), y: -this.random.range(2, 6) },
@@ -1217,6 +1251,24 @@ export class VisualFxEngine {
       "volume",
       behavior
     );
+    // Cinematic wispy tendrils — thin, long-lived, drifting
+    if (this.config.cinematicSmokeEnabled) {
+      const wispCount = 2 + Math.floor(intensity * 3);
+      for (let i = 0; i < wispCount; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const spread = 6 + Math.random() * 10;
+        this.tryAcquireSmoke(
+          { x: position.x + Math.cos(angle) * spread, y: position.y + Math.sin(angle) * spread },
+          { x: Math.cos(angle) * 1.5 + this.random.signed(3), y: -this.random.range(1, 4) - Math.sin(angle) * 0.8 },
+          this.config.particleLifetimeMs * this.random.range(3.5, 5.5),
+          color,
+          this.config.particleSize * this.random.range(6, 14),
+          (0.08 + intensity * 0.12) * smokeIntensity,
+          "residue",
+          behavior
+        );
+      }
+    }
   }
 
   private emitSmokeLaunch(
@@ -1371,6 +1423,27 @@ export class VisualFxEngine {
           "residue",
           behavior
         );
+      }
+      // Cinematic wispy tendrils — thin, long, swirling
+      if (this.config.cinematicSmokeEnabled && sampleIndex === 0) {
+        const tendrilCount = 2;
+        for (let t = 0; t < tendrilCount; t++) {
+          const tAngle = Math.random() * Math.PI * 2;
+          const tSpread = 4 + Math.random() * 8;
+          this.tryAcquireSmoke(
+            { x: basePosition.x + Math.cos(tAngle) * tSpread, y: basePosition.y + Math.sin(tAngle) * tSpread },
+            {
+              x: Math.cos(tAngle) * 0.8 + baseVelocity.x * 0.3 + this.random.signed(2),
+              y: Math.sin(tAngle) * 0.6 - this.random.range(0.5, 2)
+            },
+            baseLifetime * this.random.range(1.8, 2.8),
+            color,
+            baseRadius * this.random.range(4, 9),
+            sampleAlpha * 0.25,
+            "residue",
+            behavior
+          );
+        }
       }
     }
   }

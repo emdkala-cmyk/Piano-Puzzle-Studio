@@ -287,6 +287,16 @@ export function App() {
         <input data-fx="keyboardGlowPulseAmount" type="range" min="0" max="1" step="0.01">
         <small class="anchor-hint">شدت نوسان نفس‌خط (breathing)</small>
       </div>
+      <div class="fx-section"><h4 class="fx-section-title">✨ Ambient & Cinematic</h4>
+        <label class="toggle-row"><span>Ambient Dust</span><input data-fx="ambientDustEnabled" type="checkbox"></label>
+        <label class="range-label">Dust Density <input data-fx-value="ambientDustDensity" type="text" class="fx-value-input"></label>
+        <input data-fx="ambientDustDensity" type="range" min="0" max="1" step="0.01">
+        <small class="anchor-hint">تراکم ذرات اتمسفریک (غبار/جرقه‌های ریز)</small>
+        <label class="toggle-row"><span>Tone Reactive</span><input data-fx="toneReactiveEnabled" type="checkbox"></label>
+        <small class="anchor-hint">افکت‌ها به فرکانس نت واکنش نشون میدن (باس = گرم، زیر = خنک)</small>
+        <label class="toggle-row"><span>Cinematic Smoke</span><input data-fx="cinematicSmokeEnabled" type="checkbox"></label>
+        <small class="anchor-hint">لایه‌های دود نازک و ویسپی سینمایی</small>
+      </div>
       <div class="control-row"><button type="button" data-fx-action="reset" class="ghost-button">Reset FX Settings</button><button type="button" data-fx-action="demo" class="ghost-button" id="fx-demo-btn">Run Demo Scene</button></div>
       <div class="fx-section"><h4 class="fx-section-title">💾 Save Custom Preset</h4>
         <label class="range-label">Preset Name <input id="custom-preset-name" type="text" placeholder="My Preset" style="width:120px;padding:4px 8px;background:#0a0e1c;border:1px solid #39436f;border-radius:6px;color:#f5f7ff;font-size:11px;"></label>
@@ -692,26 +702,8 @@ export function App() {
       const refImg = referenceFrameImageRef.current;
       const refW = refImg?.naturalWidth ?? referenceFrame?.width;
       const refH = refImg?.naturalHeight ?? referenceFrame?.height;
-      const keyPlacement = (refW && refH) ? computeAlignedPlacement(refW, refH, DEFAULT_LAYOUT.pianoRegion, pianoPlacementRef.current) : { offsetX: 0, offsetY: 0, scale: 1 };
-      if (calibration) {
-        const keyLayout = createPianoLayout("88-key");
-        const keyCtx = buildKeyProjectionContext(calibration);
-        const anchors = keyLayout.filter((k2) => k2.keyType === "white").map((key) => {
-          const srcPoint = projectKeySpawn(calibration, key, keyCtx);
-          const topPoint = projectCompPoint(srcPoint, DEFAULT_LAYOUT.pianoRegion, keyPlacement);
-          return { midiNote: key.midiNote, topPoint, width: Math.max(4, key.normalizedWidth * DEFAULT_LAYOUT.pianoRegion.width * keyPlacement.scale * 0.5) };
-        });
-        fxRef.current.getKeyboardGlow().setKeyAnchors(anchors);
-      } else {
-        const reg = DEFAULT_LAYOUT.pianoRegion;
-        const startX = reg.x + keyPlacement.offsetX;
-        const endX = reg.x + keyPlacement.offsetX + reg.width * keyPlacement.scale;
-        const topY = reg.y + keyPlacement.offsetY;
-        fxRef.current.getKeyboardGlow().setKeyAnchors([
-          { midiNote: 21, topPoint: { x: startX, y: topY }, width: 20 },
-          { midiNote: 108, topPoint: { x: endX, y: topY }, width: 20 }
-        ]);
-      }
+      // Keyboard glow anchors are now computed every frame in tick() using calibrationRef
+      // to avoid stale closure values and race conditions with applyPuzzleTransform
     }
     rebuildPianoBackground(k);
     rebuildPuzzleRenderer();
