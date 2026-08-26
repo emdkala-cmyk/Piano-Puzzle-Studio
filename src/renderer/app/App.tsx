@@ -264,7 +264,7 @@ export function App() {
         <small class="anchor-hint">شعاع گسترش هاله‌ی اطراف خط</small>
         <label class="range-label">Edge Softness <input data-fx-value="keyboardGlowSoftness" type="text" class="fx-value-input"></label>
         <input data-fx="keyboardGlowSoftness" type="range" min="0" max="1" step="0.01">
-        <small class="anchor-hint">۰ = لبه تیز، ۱ = گرادیانت نرم</small>
+        <small class="anchor-hint">۰ = خط کاملاً خاموش (حذف)، ۱ = گرادیانت نرم‌ترین</small>
         <label class="range-label">Dissolve Speed <input data-fx-value="keyboardGlowDissolveSpeed" type="text" class="fx-value-input"></label>
         <input data-fx="keyboardGlowDissolveSpeed" type="range" min="0.1" max="8" step="0.1">
         <small class="anchor-hint">سرعت محو شدن beam‌ها</small>
@@ -639,8 +639,18 @@ export function App() {
     } else {
       const g = new Graphics();
       const whiteCount = 14; const keyW = region.width / whiteCount;
-      for (let i = 0; i < whiteCount; i += 1) {
-        g.rect((region.x + i * keyW) * k, region.y * k, (keyW - 1) * k, region.height * k).fill({ color: 0x1c2340, alpha: 0.5 }).stroke({ color: 0x39436f, width: 1, alpha: 0.6 });
+      // Draw the whole keyboard as ONE rectangle (no stroke).
+      // Previous code drew each white key as a separate rect with a 1px stroke,
+      // and since all keys share the same top y, the top strokes stacked into a
+      // single unwanted horizontal line across the top of the keyboard.
+      g.rect(region.x * k, region.y * k, region.width * k, region.height * k)
+        .fill({ color: 0x1c2340, alpha: 0.5 });
+      // Re-create the visual separators between adjacent white keys by drawing
+      // 1px vertical gaps in the canvas background colour. Only the gaps are
+      // drawn - no top or bottom horizontal strokes anywhere.
+      for (let i = 1; i < whiteCount; i += 1) {
+        g.rect((region.x + i * keyW - 0.5) * k, region.y * k, k, region.height * k)
+          .fill({ color: 0x0c0f1c, alpha: 1 });
       }
       for (let i = 0; i < whiteCount - 1; i += 1) {
         if (i % 7 === 2 || i % 7 === 6) continue;
