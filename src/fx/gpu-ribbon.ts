@@ -1,16 +1,24 @@
 /**
- * Ribbon / trail renderer using PixiJS Graphics.
+ * Ribbon / trail renderer using PixiJS Graphics — multi-layer glow.
  *
- * Simple and reliable — no custom GLSL shader needed.
- * CPU tessellates the triangle-strip each frame using Graphics.drawPolygon().
- * This is the "just works" fallback after the GPU shader approach broke on PixiJS v8.
+ * Instead of a single sharp polygon, draws 4 concentric layers:
+ *   1. Outer haze (3× width, very faint)
+ *   2. Soft glow (2× width, semi-transparent)
+ *   3. Body (1× width, moderate alpha)
+ *   4. Bright core (0.3× width, intense)
+ *
+ * This creates a soft, cotton-like light trail instead of a sharp line.
  */
 
 import { Container, Graphics, type PointData } from "pixi.js";
 
-/* ------------------------------------------------------------------ */
-/* GpuRibbon (Graphics-based)                                         */
-/* ------------------------------------------------------------------ */
+/** Glow layer definition: [widthMultiplier, alphaMultiplier] */
+const GLOW_LAYERS: [number, number][] = [
+  [3.0, 0.06],   // outer haze — very wide, very faint
+  [2.0, 0.15],   // soft glow — wide, semi-transparent
+  [1.0, 0.45],   // body — normal width, visible
+  [0.3, 0.75],   // bright core — thin, intense
+];
 
 export class GpuRibbon {
   readonly container = new Container();
@@ -32,13 +40,7 @@ export class GpuRibbon {
   }
 
   /**
-   * Rebuild the ribbon for this frame.
-   *
-   * @param points  Centre-line points (at least 2).
-   * @param widths  Half-width at each point.
-   * @param alphas  Opacity at each point (0–1).
-   * @param color   Tint colour (hex, e.g. 0x4499ff).
-   * @param tintAlpha  Overall tint alpha multiplier (0–1).
+   * Rebuild the ribbon for this frame — multi-layer glow.
    */
   update(
     points: PointData[],
@@ -62,63 +64,63 @@ export class GpuRibbon {
     const g = this.gfx;
     g.clear();
 
-    // Convert hex color to components
-    const r = (color >> 16) & 0xff;
-    const gv = (color >> 8) & 0xff;
-    const b = color & 0xff;
     const alpha = Math.max(0, Math.min(1, tintAlpha));
 
-    // Build left/right vertices
+    // Build left/right vertices for each glow layer width
     const pos = this.posData;
+
+    // Compute perpendiculars once (they're the same for all layers)
+    const perpXArr = new Float32Array(n);
+    const perpYArr = new Float32Array(n);
     for (let i = 0; i < n; i++) {
       const p = points[i];
-      const hw = widths[i] ?? 4;
-
-      // Perpendicular offset
-      let perpX = 0;
-      let perpY = 0;
+      let px = 0, py = 0;
       if (i < n - 1) {
         const dx = points[i + 1].x - p.x;
         const dy = points[i + 1].y - p.y;
         const len = Math.sqrt(dx * dx + dy * dy) || 1;
-        perpX = (-dy / len) * hw;
-        perpY = (dx / len) * hw;
+        px = -dy / len;
+        py = dx / len;
       } else if (i > 0) {
         const dx = p.x - points[i - 1].x;
         const dy = p.y - points[i - 1].y;
         const len = Math.sqrt(dx * dx + dy * dy) || 1;
-        perpX = (-dy / len) * hw;
-        perpY = (dx / len) * hw;
+        px = -dy / len;
+        py = dx / len;
       }
-
-      const vi = i * 4;
-      // Left vertex
-      pos[vi + 0] = p.x + perpX;
-      pos[vi + 1] = p.y + perpY;
-      // Right vertex
-      pos[vi + 2] = p.x - perpX;
-      pos[vi + 3] = p.y - perpY;
+      perpXArr[i] = px;
+      perpYArr[i] = py;
     }
 
-    // Draw triangle-strip as individual quads (each quad = 2 triangles)
-    for (let i = 0; i < n - 1; i++) {
-      const vi = i * 4;
-      const a = Math.max(0, Math.min(1, alphas[i] ?? 0));
-      const aNext = Math.max(0, Math.min(1, alphas[i + 1] ?? 0));
+    // Draw each glow layer
+    for (const [widthMult, alphaMult] of GLOW_LAYERS) {
+      // Compute vertices for this width multiplier
+      for (let i = 0; i < n; i++) {
+        const p = points[i];
+        const hw = (widths[i] ?? 4) * widthMult;
+        const vi = i * 4;
+        pos[vi + 0] = p.x + perpXArr[i] * hw;  // left x
+        pos[vi + 1] = p.y + perpYArr[i] * hw;  // left y
+        pos[vi + 2] = p.x - perpXArr[i] * hw;  // right x
+        pos[vi + 3] = p.y - perpYArr[i] * hw;  // right y
+      }
 
-      const finalAlpha = alpha * Math.max(a, aNext);
-      if (finalAlpha < 0.01) continue;
+      // Draw triangle-strip as quads
+      for (let i = 0; i < n - 1; i++) {
+        const vi = i * 4;
+        const a = Math.max(0, Math.min(1, alphas[i] ?? 0));
+        const aNext = Math.max(0, Math.min(1, alphas[i + 1] ?? 0));
+        const finalAlpha = alpha * alphaMult * Math.max(a, aNext);
+        if (finalAlpha < 0.005) continue;
 
-      // Quad: left[i], right[i], right[i+1], left[i+1]
-      const poly = [
-        pos[vi + 0], pos[vi + 1],     // left[i]
-        pos[vi + 2], pos[vi + 3],     // right[i]
-        pos[vi + 6], pos[vi + 7],     // right[i+1]
-        pos[vi + 4], pos[vi + 5],     // left[i+1]
-      ];
-
-      g.poly(poly);
-      g.fill({ color, alpha: finalAlpha });
+        g.poly([
+          pos[vi + 0], pos[vi + 1],
+          pos[vi + 2], pos[vi + 3],
+          pos[vi + 6], pos[vi + 7],
+          pos[vi + 4], pos[vi + 5],
+        ]);
+        g.fill({ color, alpha: finalAlpha });
+      }
     }
   }
 

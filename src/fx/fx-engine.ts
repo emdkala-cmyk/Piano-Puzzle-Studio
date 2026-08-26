@@ -955,22 +955,28 @@ export class VisualFxEngine {
     const d2 = this.config.particleDensity;
     // Linear formula: count scales directly with density
     const count = Math.round(d2 * 30 * (0.35 + this.config.trailLength) * tuning.trailMultiplier);
+    const dirX = dx / distance;
+    const dirY = dy / distance;
     for (let i = 0; i < count; i += 1) {
-      const spread = this.random.signed(14 + this.config.pathCurvature * 28);
+      const spread = this.random.signed(6 + this.config.pathCurvature * 10); // tighter spread for streaks
       const normalX = -dy / distance;
       const normalY = dx / distance;
-      const swirl = tuning.swirl * this.config.pathCurvature * Math.sin(i * 1.7 + this.demoTimeMs * 0.01) * 12;
-        this.tryAcquireParticle(
+      const swirl = tuning.swirl * this.config.pathCurvature * Math.sin(i * 1.7 + this.demoTimeMs * 0.01) * 6;
+      // Streak velocity: strong along motion direction + slight perpendicular wobble
+      const speed = this.random.range(18, 40); // faster = more streak-like
+      const texId = this.chooseTrailTexture();
+      const isStreak = texId === "light-streak" || texId === "micro-streak";
+      this.tryAcquireParticle(
         { x: position.x + normalX * spread, y: position.y + normalY * spread },
         {
-          x: direction * dx / distance * this.random.range(12, 30) + normalX * swirl,
-          y: direction * dy / distance * this.random.range(12, 30) + normalY * swirl
+          x: direction * dirX * speed + normalX * swirl + this.random.signed(isStreak ? 1.5 : 3),
+          y: direction * dirY * speed + normalY * swirl + this.random.signed(isStreak ? 1.5 : 3)
         },
-        this.config.particleLifetimeMs * (0.85 + this.config.trailLength * 0.7),
+        this.config.particleLifetimeMs * (0.85 + this.config.trailLength * 0.7) * (isStreak ? 0.65 : 1),
         color,
-        this.adjustedParticleSize() * tuning.particleScale * (0.42 + intensity * 0.78) * this.random.range(0.7, 1.25),
-        this.chooseTrailTexture(),
-        0.42 + intensity * 0.32
+        this.adjustedParticleSize() * tuning.particleScale * (isStreak ? 0.3 : 0.42 + intensity * 0.78) * this.random.range(0.7, 1.25),
+        texId,
+        (0.42 + intensity * 0.32) * (isStreak ? 0.85 : 1)
       );
     }
   }
@@ -1634,9 +1640,17 @@ export class VisualFxEngine {
       const roll = this.random.nextFloat();
       return roll < 0.35 ? "glow-orb" : roll < 0.65 ? "soft-orb" : roll < 0.82 ? "warm-orb" : "sharp-dot";
     }
-    let textureId: FxTextureId = this.random.nextFloat() > 0.82 ? "ember-small" : "dust-mote";
-    if (textureId === this.lastTrailTexture && this.random.nextFloat() < 0.7) {
-      textureId = textureId === "ember-small" ? "dust-mote" : "ember-small";
+    // Streaky textures for trail — aligned to motion direction
+    const roll = this.random.nextFloat();
+    let textureId: FxTextureId;
+    if (roll < 0.40) textureId = "light-streak";       // 40% — long elegant streak
+    else if (roll < 0.65) textureId = "micro-streak";   // 25% — short thin streak
+    else if (roll < 0.80) textureId = "spark-cross";    // 15% — cross-shaped sparkle
+    else if (roll < 0.92) textureId = "ember-small";     // 12% — tiny ember dot
+    else textureId = "micro-spark";                      // 8% — micro spark
+    if (textureId === this.lastTrailTexture && this.random.nextFloat() < 0.65) {
+      // Avoid repeating the same texture too often
+      textureId = textureId === "light-streak" ? "micro-streak" : "light-streak";
     }
     this.lastTrailTexture = textureId;
     return textureId;

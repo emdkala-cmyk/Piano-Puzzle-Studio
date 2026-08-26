@@ -9,8 +9,11 @@ const MIME_MAP: Record<string, string> = { jpg: "image/jpeg", jpeg: "image/jpeg"
 
 async function readFileByPath(filePath: string) {
   // Try Electron API first
-  const electronResult = await (window as any).pianoPuzzle?.readAssetByPath(filePath);
-  if (electronResult) return electronResult;
+  const readFn = (window as any).pianoPuzzle?.readAssetByPath;
+  if (typeof readFn === "function") {
+    const electronResult = await readFn(filePath);
+    if (electronResult) return electronResult;
+  }
   // Browser fallback: fetch from public/test/
   const fileName = filePath.split("/").pop() ?? filePath;
   const ext = fileName.split(".").pop()?.toLowerCase() ?? "";
