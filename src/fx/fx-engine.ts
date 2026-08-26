@@ -67,7 +67,7 @@ export class VisualFxEngine {
   private readonly lightTrail = new LightTrailController();
   private readonly assetPipeline = new FxAssetPipeline();
   private readonly demoLayer = new Container();
-  private readonly ribbonLayer = new Graphics();
+  // ribbonRibbon removed — lightTrail handles all trail rendering via GPU mesh
   private demoPieces: DemoPiece[] = [];
   private demoActive = false;
   private demoTimeMs = 0;
@@ -106,7 +106,7 @@ export class VisualFxEngine {
   private galaxySpawnTimer = 0;
 
   constructor() {
-    this.layer.addChild(this.keyboardGlow.layer, this.demoLayer, this.lightTrail.layer, this.smokeController.layer, this.ribbonLayer, this.particlePool.layer, this.glowController.layer, this.impactEffect.layer);
+    this.layer.addChild(this.keyboardGlow.layer, this.demoLayer, this.lightTrail.layer, this.smokeController.layer, this.particlePool.layer, this.glowController.layer, this.impactEffect.layer);
     this.layer.zIndex = 1000;
   }
 
@@ -293,6 +293,12 @@ export class VisualFxEngine {
     this.demoRevealGraphic.visible = false;
     this.demoLayer.addChild(this.demoRevealGraphic);
 
+    // Anchor real Keyboard Glow to demo keyboard top line
+    this.keyboardGlow.setKeyAnchors([
+      { midiNote: 21, topPoint: { x: 0, y: 1700 }, width: 25 },
+      { midiNote: 108, topPoint: { x: 1080, y: 1700 }, width: 25 }
+    ]);
+
     // Spawn first wave of pieces from keyboard upward
     this.spawnDemoWave();
     this.lastEvent = "demo-start";
@@ -331,21 +337,7 @@ export class VisualFxEngine {
       }
     }
 
-    // Massive glow line above keyboard - bright energy bar
-    for (let x = 0; x < totalWidth; x += 1) {
-      const glow = 0.35 + Math.sin(x * 0.025) * 0.15 + Math.sin(x * 0.08) * 0.08;
-      keyboard.rect(x, kbY - 6, 1, 6).fill({ color: 0xffaa44, alpha: glow });
-    }
-    // Soft glow above the energy line
-    for (let x = 0; x < totalWidth; x += 1) {
-      const glow = 0.12 + Math.sin(x * 0.03) * 0.06;
-      keyboard.rect(x, kbY - 18, 1, 14).fill({ color: 0xff8833, alpha: glow * 0.4 });
-    }
-    // Haze layer above keyboard
-    for (let y = 0; y < 40; y += 1) {
-      const t = y / 40;
-      keyboard.rect(0, kbY - 20 - y, totalWidth, 1).fill({ color: 0x221100, alpha: 0.12 * (1 - t) });
-    }    this.demoLayer.addChild(keyboard);
+    // Fake glow lines removed - now handled exclusively by KeyboardGlowController    this.demoLayer.addChild(keyboard);
     this.demoKeyboard = keyboard;
   }
 
@@ -579,6 +571,10 @@ export class VisualFxEngine {
 
   getKeyboardGlow() { return this.keyboardGlow; }
 
+  setKeyboardGlowAnchors(anchors: { midiNote: number; topPoint: { x: number; y: number }; width: number }[]): void {
+    this.keyboardGlow.setKeyAnchors(anchors);
+  }
+
   getStats(): FxDebugStats {
     return {
       activeParticles: this.particlePool.activeCount,
@@ -625,7 +621,6 @@ export class VisualFxEngine {
     this.keyboardGlow.clear();
     this.lightTrail.clear();
     this.trails.clear();
-    this.ribbonLayer.clear();
     this.particleSpawnsThisFrame = 0;
     this.smokeSpawnsThisFrame = 0;
     this.lastFrameParticleSpawns = 0;
@@ -1731,30 +1726,8 @@ export class VisualFxEngine {
     if (trail.points.length > maxPoints) trail.points.splice(0, trail.points.length - maxPoints);
   }
 
-  private updateRibbons(deltaMs: number): void {
-    this.ribbonLayer.clear();
-    if (!this.config.enabled || !this.config.trailEnabled || this.isStardustPreset()) return;
-    const lifetime = 90 + this.config.trailLength * 620;
-    for (const trail of this.trails.values()) {
-      for (const point of trail.points) point.age += deltaMs;
-      trail.points = trail.points.filter((point) => point.age <= lifetime);
-      if (trail.points.length < 2) continue;
-      for (let i = 1; i < trail.points.length; i += 1) {
-        const previous = trail.points[i - 1];
-        const point = trail.points[i];
-        const freshness = 1 - Math.min(1, point.age / lifetime);
-        const along = i / trail.points.length;
-        this.ribbonLayer
-          .moveTo(previous.x, previous.y)
-          .lineTo(point.x, point.y)
-          .stroke({
-            color: trail.color,
-            width: (1.2 + trail.intensity * 3.8) * (0.35 + along * 0.65),
-            alpha: freshness * trail.intensity * (0.1 + this.config.trailLength * 0.48)
-          });
-      }
-    }
-  }
+  // updateRibbons removed — lightTrail handles all trail rendering via GPU mesh
+  private updateRibbons(_deltaMs: number): void {}
 
   private updateVortex(deltaMs: number): void {
     if (!this.vortexActive) {

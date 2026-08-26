@@ -69,7 +69,7 @@ export function App() {
   const [project] = useState(() => createProject());
   const [referenceFrame, setReferenceFrame] = useState<Asset>(); const [midiAsset, setMidiAsset] = useState<Asset>();
   const [puzzleArtwork, setPuzzleArtwork] = useState<Asset>();
-  const [calibration, setCalibration] = useState<Calibration>(); const [geometry, setGeometry] = useState<GeometryResult>();
+  const [calibration, setCalibration] = useState<Calibration>(); const calibrationRef = useRef<Calibration | undefined>(undefined); const [geometry, setGeometry] = useState<GeometryResult>();
   const [midi, setMidi] = useState<NormalizedMidi>(); const [mapping, setMapping] = useState<MidiMappingResult>();
   const [referenceStatus, setReferenceStatus] = useState<"empty" | "loading" | "loaded" | "error">("empty"); const [midiStatus, setMidiStatus] = useState<"empty" | "loading" | "loaded" | "error">("empty");
   const [puzzleArtworkStatus, setPuzzleArtworkStatus] = useState<"empty" | "loading" | "loaded" | "error">("empty");
@@ -145,9 +145,24 @@ export function App() {
   const fxSettingsRef = useRef(fxSettings);
   const customPresetsRef = useRef(customPresets);
 
-  useEffect(() => { referenceFrameRef.current = referenceFrame; geometryRef.current = geometry; mappingRef.current = mapping; timingRef.current = timingSettings; expressionRef.current = expressionSettings; showPieceBordersRef.current = showPieceBorders; audioEnabledRef.current = audioEnabled; calibZoomRef.current = calibZoom; pianoPlacementRef.current = pianoPlacement; artworkPlacementRef.current = artworkPlacement; fxSettingsRef.current = fxSettings; customPresetsRef.current = customPresets; }, [referenceFrame, geometry, mapping, timingSettings, expressionSettings, showPieceBorders, audioEnabled, calibZoom, pianoPlacement, artworkPlacement, fxSettings, customPresets]);
+  useEffect(() => { referenceFrameRef.current = referenceFrame; calibrationRef.current = calibration; geometryRef.current = geometry; mappingRef.current = mapping; timingRef.current = timingSettings; expressionRef.current = expressionSettings; showPieceBordersRef.current = showPieceBorders; audioEnabledRef.current = audioEnabled; calibZoomRef.current = calibZoom; pianoPlacementRef.current = pianoPlacement; artworkPlacementRef.current = artworkPlacement; fxSettingsRef.current = fxSettings; customPresetsRef.current = customPresets; }, [referenceFrame, calibration, geometry, mapping, timingSettings, expressionSettings, showPieceBorders, audioEnabled, calibZoom, pianoPlacement, artworkPlacement, fxSettings, customPresets]);
   useEffect(() => { setArtworkPlacement(DEFAULT_ARTWORK_PLACEMENT); }, [puzzleArtwork?.id]);
-  useEffect(() => { fxRef.current?.setConfig(fxSettings); }, [fxSettings]);
+  useEffect(() => {
+    if (fxRef.current) {
+      fxRef.current.setConfig(fxSettings);
+      const kGlow = fxRef.current.getKeyboardGlow();
+      kGlow.applySettings(
+        fxSettings.keyboardGlowThickness,
+        fxSettings.keyboardGlowSpread,
+        fxSettings.keyboardGlowSoftness,
+        fxSettings.keyboardGlowDissolveSpeed,
+        fxSettings.keyboardGlowPulseAmount,
+        1.0,
+        fxSettings.keyboardGlowEnabled && fxSettings.enabled
+      );
+      kGlow.update(0.016, fxSettings.keyboardGlowEnabled && fxSettings.enabled, 1.0);
+    }
+  }, [fxSettings]);
   // Load custom presets from localStorage
   useEffect(() => {
     try {
@@ -629,11 +644,14 @@ export function App() {
     if (refImage) {
       const placement = computeAlignedPlacement(refImage.naturalWidth, refImage.naturalHeight, region, pianoPlacementRef.current);
       const absolutePlacement = toAbsolutePlacement(region, placement);
-      const sprite = new Sprite(Texture.from(refImage));
-      sprite.x = absolutePlacement.offsetX * k;
-      sprite.y = absolutePlacement.offsetY * k;
-      sprite.width = refImage.naturalWidth * absolutePlacement.scale * k;
-      sprite.height = refImage.naturalHeight * absolutePlacement.scale * k;
+      const tex = Texture.from(refImage);
+      tex.source.scaleMode = "linear";
+      const sprite = new Sprite(tex);
+      sprite.x = Math.round(absolutePlacement.offsetX * k);
+      sprite.y = Math.round(absolutePlacement.offsetY * k);
+      sprite.width = Math.round(refImage.naturalWidth * absolutePlacement.scale * k);
+      sprite.height = Math.round(refImage.naturalHeight * absolutePlacement.scale * k);
+      sprite.roundPixels = true;
       sprite.alpha = 0.5;
       layer.addChild(sprite);
     } else {
@@ -671,8 +689,11 @@ export function App() {
     if (fxRef.current) {
       fxRef.current.layer.position.set(offsetX, offsetY);
       fxRef.current.layer.scale.set(k);
+      const refImg = referenceFrameImageRef.current;
+      const refW = refImg?.naturalWidth ?? referenceFrame?.width;
+      const refH = refImg?.naturalHeight ?? referenceFrame?.height;
+      const keyPlacement = (refW && refH) ? computeAlignedPlacement(refW, refH, DEFAULT_LAYOUT.pianoRegion, pianoPlacementRef.current) : { offsetX: 0, offsetY: 0, scale: 1 };
       if (calibration) {
-        const keyPlacement = referenceFrameImageRef.current ? computeAlignedPlacement(referenceFrameImageRef.current.naturalWidth, referenceFrameImageRef.current.naturalHeight, DEFAULT_LAYOUT.pianoRegion, pianoPlacementRef.current) : { offsetX: 0, offsetY: 0, scale: 1 };
         const keyLayout = createPianoLayout("88-key");
         const keyCtx = buildKeyProjectionContext(calibration);
         const anchors = keyLayout.filter((k2) => k2.keyType === "white").map((key) => {
@@ -681,6 +702,15 @@ export function App() {
           return { midiNote: key.midiNote, topPoint, width: Math.max(4, key.normalizedWidth * DEFAULT_LAYOUT.pianoRegion.width * keyPlacement.scale * 0.5) };
         });
         fxRef.current.getKeyboardGlow().setKeyAnchors(anchors);
+      } else {
+        const reg = DEFAULT_LAYOUT.pianoRegion;
+        const startX = reg.x + keyPlacement.offsetX;
+        const endX = reg.x + keyPlacement.offsetX + reg.width * keyPlacement.scale;
+        const topY = reg.y + keyPlacement.offsetY;
+        fxRef.current.getKeyboardGlow().setKeyAnchors([
+          { midiNote: 21, topPoint: { x: startX, y: topY }, width: 20 },
+          { midiNote: 108, topPoint: { x: endX, y: topY }, width: 20 }
+        ]);
       }
     }
     rebuildPianoBackground(k);
@@ -724,6 +754,24 @@ export function App() {
         fxRef.current?.onPieceLock({ pieceId: frame.pieceId, position: frame.targetPosition, midiNote: frame.midiNote, intensity: frame.opacity, playbackTimeMs: currentTimeMs });
       }
       previousStates.set(frame.pieceId, frame.state);
+    }
+    // Recompute keyboard glow anchors every frame — avoids timing issues with useEffect ordering
+    const cal = calibrationRef.current;
+    if (fxRef.current && cal) {
+      const refImg = referenceFrameImageRef.current;
+      const refW = refImg?.naturalWidth ?? referenceFrameRef.current?.width;
+      const refH = refImg?.naturalHeight ?? referenceFrameRef.current?.height;
+      if (refW && refH) {
+        const keyPlacement = computeAlignedPlacement(refW, refH, DEFAULT_LAYOUT.pianoRegion, pianoPlacementRef.current);
+        const keyLayout = createPianoLayout("88-key");
+        const keyCtx = buildKeyProjectionContext(cal);
+        const anchors = keyLayout.filter((k2) => k2.keyType === "white").map((key) => {
+          const srcPoint = projectKeySpawn(cal, key, keyCtx);
+          const topPoint = projectCompPoint(srcPoint, DEFAULT_LAYOUT.pianoRegion, keyPlacement);
+          return { midiNote: key.midiNote, topPoint, width: Math.max(4, key.normalizedWidth * DEFAULT_LAYOUT.pianoRegion.width * keyPlacement.scale * 0.5) };
+        });
+        fxRef.current.setKeyboardGlowAnchors(anchors);
+      }
     }
     fxRef.current?.update(deltaSeconds, currentTimeMs, [...frames] as unknown as FxAnimationFrame[]);
     // Ensure FX layer is always on top
@@ -803,7 +851,30 @@ export function App() {
     setDebugFrames(frames);
   }, [mapping, geometry, timingSettings, expressionSettings, midi, puzzleArtwork, referenceFrame, showPieceBorders, artworkPlacement]);
 
-  useEffect(() => { if (previewTab === "puzzle") applyPuzzleTransform(); }, [previewTab, pianoPlacement]);
+  useEffect(() => {
+    applyPuzzleTransform();
+  }, [previewTab, pianoPlacement, referenceFrame, calibration]);
+
+  // Re-compute keyboard glow anchors whenever calibration or placement changes,
+  // even if the PixiJS app hasn't called applyPuzzleTransform yet.
+  useEffect(() => {
+    if (!fxRef.current) return;
+    const refImg = referenceFrameImageRef.current;
+    const refW = refImg?.naturalWidth ?? referenceFrame?.width;
+    const refH = refImg?.naturalHeight ?? referenceFrame?.height;
+    if (!refW || !refH) return;
+    const keyPlacement = computeAlignedPlacement(refW, refH, DEFAULT_LAYOUT.pianoRegion, pianoPlacementRef.current);
+    if (calibration) {
+      const keyLayout = createPianoLayout("88-key");
+      const keyCtx = buildKeyProjectionContext(calibration);
+      const anchors = keyLayout.filter((k2) => k2.keyType === "white").map((key) => {
+        const srcPoint = projectKeySpawn(calibration, key, keyCtx);
+        const topPoint = projectCompPoint(srcPoint, DEFAULT_LAYOUT.pianoRegion, keyPlacement);
+        return { midiNote: key.midiNote, topPoint, width: Math.max(4, key.normalizedWidth * DEFAULT_LAYOUT.pianoRegion.width * keyPlacement.scale * 0.5) };
+      });
+      fxRef.current.getKeyboardGlow().setKeyAnchors(anchors);
+    }
+  }, [calibration, pianoPlacement, referenceFrame]);
 
   useEffect(() => {
     if (!midi || geometry || !puzzleArtworkImageRef.current) return;

@@ -14,10 +14,6 @@ interface ActiveKeyGlow {
   birthTime: number;
 }
 
-/**
- * A soft volumetric smoke puff drifting horizontally along the glow line.
- * Rendered with a Gaussian blob texture — no hard edges, ever.
- */
 interface FogWisp {
   x: number;
   y: number;
@@ -43,11 +39,6 @@ interface SparkleDot {
   tint: number;
 }
 
-/* ------------------------------------------------------------------ */
-/* Texture generation (canvas 2D → Pixi textures, done once)          */
-/* ------------------------------------------------------------------ */
-
-/** Approximate a Gaussian profile with layered gradient stops. */
 const GAUSS_STOPS: Array<[number, number]> = [
   [0.0, 0.0],
   [0.18, 0.015],
@@ -62,10 +53,6 @@ const GAUSS_STOPS: Array<[number, number]> = [
   [1.0, 0.0]
 ];
 
-/**
- * Horizontal light-bar texture: smooth Gaussian falloff vertically,
- * gentle fade at both horizontal ends. White — tint via Sprite.tint.
- */
 function makeBeamTexture(): Texture {
   const w = 512;
   const h = 256;
@@ -74,7 +61,6 @@ function makeBeamTexture(): Texture {
   canvas.height = h;
   const ctx = canvas.getContext("2d")!;
 
-  // Vertical Gaussian
   const grad = ctx.createLinearGradient(0, 0, 0, h);
   for (const [stop, alpha] of GAUSS_STOPS) {
     grad.addColorStop(stop, `rgba(255,255,255,${alpha})`);
@@ -82,11 +68,10 @@ function makeBeamTexture(): Texture {
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, w, h);
 
-  // Horizontal end fade (keeps the middle uniform)
   const fade = ctx.createLinearGradient(0, 0, w, 0);
   fade.addColorStop(0, "rgba(0,0,0,0)");
-  fade.addColorStop(0.1, "rgba(0,0,0,1)");
-  fade.addColorStop(0.9, "rgba(0,0,0,1)");
+  fade.addColorStop(0.08, "rgba(0,0,0,1)");
+  fade.addColorStop(0.92, "rgba(0,0,0,1)");
   fade.addColorStop(1, "rgba(0,0,0,0)");
   ctx.globalCompositeOperation = "destination-in";
   ctx.fillStyle = fade;
@@ -95,10 +80,6 @@ function makeBeamTexture(): Texture {
   return Texture.from(canvas);
 }
 
-/**
- * Vertical beam texture: Gaussian across x, fading out toward the top.
- * Bright at the bottom (anchor 0.5,1 → sits on the key top).
- */
 function makeUpBeamTexture(): Texture {
   const w = 128;
   const h = 512;
@@ -114,7 +95,6 @@ function makeUpBeamTexture(): Texture {
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, w, h);
 
-  // Fade toward the top so the beam dissolves into the air
   const fade = ctx.createLinearGradient(0, 0, 0, h);
   fade.addColorStop(0, "rgba(0,0,0,0)");
   fade.addColorStop(0.45, "rgba(0,0,0,0.55)");
@@ -127,7 +107,6 @@ function makeUpBeamTexture(): Texture {
   return Texture.from(canvas);
 }
 
-/** Radial Gaussian blob — for smoke puffs, flares and sparkles. */
 function makeBlobTexture(): Texture {
   const size = 256;
   const canvas = document.createElement("canvas");
@@ -143,18 +122,9 @@ function makeBlobTexture(): Texture {
   return Texture.from(canvas);
 }
 
-/**
- * Cinematic keyboard glow, fully texture-based:
- * - Ambient light bar built from layered Gaussian-gradient sprites (additive)
- * - Volumetric smoke wisps drifting horizontally along the line
- * - Soft per-key light beams with bloom hotspots
- * - Gentle breathing pulse
- * There are no Graphics strokes anywhere — every edge is a gradient.
- */
 export class KeyboardGlowController {
   readonly layer = new Container();
 
-  // Sub-layers (bottom → top)
   private readonly ambientLayer = new Container();
   private readonly fogLayer = new Container();
   private readonly beamLayer = new Container();
@@ -164,25 +134,23 @@ export class KeyboardGlowController {
   private readonly upBeamTex: Texture;
   private readonly blobTex: Texture;
 
-  // Ambient light bar: haze → glow → band → core
   private readonly hazeSprite: Sprite;
   private readonly glowSprite: Sprite;
   private readonly bandSprite: Sprite;
   private readonly coreSprite: Sprite;
 
-  // Energy shimmer travelling along the line
   private readonly shimmerA: Sprite;
   private readonly shimmerB: Sprite;
 
   private keyAnchors: KeyGlowAnchor[] = [];
   private activeGlows = new Map<number, ActiveKeyGlow>();
 
-  // --- Parameters ---
   private thickness = 4;
   private spread = 60;
   private softness = 0.7;
   private dissolveSpeed = 1.5;
   private pulseAmount = 0.4;
+  private isEnabled = true;
 
   private paused = false;
   private time = 0;
@@ -191,7 +159,6 @@ export class KeyboardGlowController {
   private static readonly MAX_FOG = 70;
   private static readonly MAX_SPARKLES = 40;
 
-  // Pools for dynamic sprites
   private readonly wispPool: Sprite[] = [];
   private readonly beamPool: Sprite[] = [];
   private readonly flarePool: Sprite[] = [];
@@ -215,23 +182,45 @@ export class KeyboardGlowController {
       s.anchor.set(0.5, 0.5);
       s.tint = tint;
       s.blendMode = "add";
+      s.roundPixels = true;
       parent.addChild(s);
       return s;
     };
 
-    // Ambient bar layers — cool outer haze → white-hot core
     this.hazeSprite = mk(this.beamTex, 0x4d8fd6, this.ambientLayer);
     this.glowSprite = mk(this.beamTex, 0x9cc4ef, this.ambientLayer);
     this.bandSprite = mk(this.beamTex, 0xe8f4ff, this.ambientLayer);
     this.coreSprite = mk(this.beamTex, 0xffffff, this.ambientLayer);
 
-    // Travelling shimmer highlights
     this.shimmerA = mk(this.blobTex, 0xffffff, this.ambientLayer);
     this.shimmerB = mk(this.blobTex, 0xcfe6ff, this.ambientLayer);
+
+    // Hide all ambient sprites until setKeyAnchors positions them correctly
+    this.hazeSprite.visible = false;
+    this.glowSprite.visible = false;
+    this.bandSprite.visible = false;
+    this.coreSprite.visible = false;
+    this.shimmerA.visible = false;
+    this.shimmerB.visible = false;
   }
 
   setKeyAnchors(anchors: KeyGlowAnchor[]): void {
+    // Detect if the glow bar has moved significantly (piano zoom/position changed)
+    const oldCy = this.keyAnchors.length > 0 ? this.keyAnchors[0].topPoint.y : -9999;
+    const oldCx = this.keyAnchors.length > 0 ? (this.keyAnchors[0].topPoint.x + this.keyAnchors[this.keyAnchors.length - 1].topPoint.x) / 2 : -9999;
     this.keyAnchors = anchors.slice().sort((a, b) => a.topPoint.x - b.topPoint.x);
+    if (this.keyAnchors.length >= 2) {
+      const newCy = this.keyAnchors[0].topPoint.y;
+      const newCx = (this.keyAnchors[0].topPoint.x + this.keyAnchors[this.keyAnchors.length - 1].topPoint.x) / 2;
+      const moved = Math.abs(newCy - oldCy) > 2 || Math.abs(newCx - oldCx) > 2;
+      if (moved) {
+        // Clear ALL old particles so no ghost remains at the previous position
+        this.fogWisps = [];
+        this.sparkles = [];
+        this.activeGlows.clear();
+      }
+    }
+    this.renderBar(1.0, this.isEnabled);
   }
 
   applySettings(
@@ -240,15 +229,17 @@ export class KeyboardGlowController {
     softness: number,
     dissolveSpeed: number,
     pulseAmount: number,
-    beamIntensity = 1.0
+    beamIntensity = 1.0,
+    enabled = true
   ): void {
     this.thickness = clamp(thickness, 0.5, 20);
     this.spread = clamp(spread, 5, 250);
     this.softness = clamp(softness, 0, 1);
     this.dissolveSpeed = clamp(dissolveSpeed, 0.1, 8);
     this.pulseAmount = clamp(pulseAmount, 0, 1);
-    // beamIntensity reserved for future per-beam gain
+    this.isEnabled = enabled;
     void beamIntensity;
+    this.renderBar(1.0, this.isEnabled);
   }
 
   setPaused(paused: boolean): void {
@@ -317,6 +308,7 @@ export class KeyboardGlowController {
       s = new Sprite(tex);
       s.anchor.set(0.5, 0.5);
       s.blendMode = "add";
+      s.roundPixels = true;
       parent.addChild(s);
     }
     s.texture = tex;
@@ -324,7 +316,67 @@ export class KeyboardGlowController {
     return s;
   }
 
+  private renderBar(globalIntensity: number, enabled: boolean): void {
+    if (!enabled || !this.isEnabled || this.keyAnchors.length < 2) {
+      this.hazeSprite.visible = false;
+      this.glowSprite.visible = false;
+      this.bandSprite.visible = false;
+      this.coreSprite.visible = false;
+      this.shimmerA.visible = false;
+      this.shimmerB.visible = false;
+      return;
+    }
+
+    const t = this.time;
+    const firstP = this.keyAnchors[0].topPoint;
+    const lastP = this.keyAnchors[this.keyAnchors.length - 1].topPoint;
+    const cy = firstP.y;
+    const lineLen = Math.max(10, lastP.x - firstP.x);
+    const cx = (firstP.x + lastP.x) / 2;
+
+    const breathe = 1 - this.pulseAmount * 0.22 * (0.5 + 0.5 * Math.sin(t * 1.6));
+
+    this.hazeSprite.visible = true;
+    this.hazeSprite.position.set(cx, cy);
+    this.hazeSprite.width = lineLen * 1.15;
+    this.hazeSprite.height = Math.max(4, this.spread * 3.2 * breathe);
+    this.hazeSprite.alpha = (0.12 + 0.22 * this.softness) * globalIntensity;
+
+    this.glowSprite.visible = true;
+    this.glowSprite.position.set(cx, cy);
+    this.glowSprite.width = lineLen * 1.08;
+    this.glowSprite.height = Math.max(3, this.spread * 1.2 * breathe);
+    this.glowSprite.alpha = (0.28 + 0.35 * this.softness) * globalIntensity;
+
+    this.bandSprite.visible = true;
+    this.bandSprite.position.set(cx, cy);
+    this.bandSprite.width = lineLen * 1.04;
+    this.bandSprite.height = Math.max(2, this.thickness * 4.5 + 4);
+    this.bandSprite.alpha = 0.65 * globalIntensity * breathe;
+
+    this.coreSprite.visible = true;
+    this.coreSprite.position.set(cx, cy);
+    this.coreSprite.width = lineLen * 1.01;
+    this.coreSprite.height = Math.max(1.2, this.thickness * 1.5 + 1.0);
+    this.coreSprite.alpha = 0.98 * globalIntensity;
+
+    const shimmerPos = (t * 0.13) % 1.6 - 0.3;
+    this.shimmerA.visible = true;
+    this.shimmerA.position.set(firstP.x + shimmerPos * lineLen, cy);
+    this.shimmerA.width = lineLen * 0.35;
+    this.shimmerA.height = this.spread * 0.9;
+    this.shimmerA.alpha = 0.12 * globalIntensity;
+
+    const shimmer2Pos = 1.6 - ((t * 0.09 + 0.5) % 1.6);
+    this.shimmerB.visible = true;
+    this.shimmerB.position.set(firstP.x + shimmer2Pos * lineLen, cy);
+    this.shimmerB.width = lineLen * 0.3;
+    this.shimmerB.height = this.spread * 0.7;
+    this.shimmerB.alpha = 0.08 * globalIntensity;
+  }
+
   update(deltaSeconds: number, enabled: boolean, globalIntensity: number): void {
+    this.isEnabled = enabled;
     if (!this.paused) {
       this.time += deltaSeconds;
 
@@ -333,7 +385,6 @@ export class KeyboardGlowController {
         if (state.intensity <= 0.005) this.activeGlows.delete(note);
       }
 
-      // --- SMOKE: continuous ambient spawn + physics ---
       this.fogSpawnTimer += deltaSeconds;
       if (this.keyAnchors.length >= 2 && this.fogSpawnTimer >= this.fogSpawnInterval) {
         this.fogSpawnTimer = 0;
@@ -375,68 +426,15 @@ export class KeyboardGlowController {
       }
     }
 
-    // === Hide pooled sprites from the previous frame ===
     for (const s of this.wispPool) s.visible = false;
     for (const s of this.beamPool) s.visible = false;
     for (const s of this.flarePool) s.visible = false;
     for (const s of this.sparklePool) s.visible = false;
 
-    if (!enabled || this.keyAnchors.length < 2) return;
+    this.renderBar(globalIntensity, enabled);
 
-    const t = this.time;
-    const firstP = this.keyAnchors[0].topPoint;
-    const lastP = this.keyAnchors[this.keyAnchors.length - 1].topPoint;
-    const cy = firstP.y;
-    const lineLen = lastP.x - firstP.x;
-    const cx = (firstP.x + lastP.x) / 2;
+    if (!enabled || !this.isEnabled || this.keyAnchors.length < 2) return;
 
-    // === BREATHING PULSE ===
-    const breathe = 1 - this.pulseAmount * 0.22 * (0.5 + 0.5 * Math.sin(t * 1.6));
-
-    // === AMBIENT LIGHT BAR (layered Gaussian sprites, additive) ===
-    // Outer cool haze — the big soft spread
-    this.hazeSprite.visible = true;
-    this.hazeSprite.position.set(cx, cy);
-    this.hazeSprite.width = lineLen * 1.12;
-    this.hazeSprite.height = Math.max(4, this.spread * 2.6 * breathe);
-    this.hazeSprite.alpha = (0.10 + 0.14 * this.softness) * globalIntensity;
-
-    // Mid glow
-    this.glowSprite.visible = true;
-    this.glowSprite.position.set(cx, cy);
-    this.glowSprite.width = lineLen * 1.08;
-    this.glowSprite.height = Math.max(3, this.spread * 1.0 * breathe);
-    this.glowSprite.alpha = (0.22 + 0.22 * this.softness) * globalIntensity;
-
-    // Bright band around the core
-    this.bandSprite.visible = true;
-    this.bandSprite.position.set(cx, cy);
-    this.bandSprite.width = lineLen * 1.05;
-    this.bandSprite.height = Math.max(2, this.thickness * 5 + 6);
-    this.bandSprite.alpha = 0.55 * globalIntensity * breathe;
-
-    // White-hot core — soft but intense
-    this.coreSprite.visible = true;
-    this.coreSprite.position.set(cx, cy);
-    this.coreSprite.width = lineLen * 1.02;
-    this.coreSprite.height = Math.max(1.5, this.thickness * 1.8 + 1.2);
-    this.coreSprite.alpha = 0.95 * globalIntensity;
-
-    // === SHIMMER: soft brightening drifting along the line ===
-    const shimmerPos = (t * 0.13) % 1.6 - 0.3;
-    this.shimmerA.visible = true;
-    this.shimmerA.position.set(firstP.x + shimmerPos * lineLen, cy);
-    this.shimmerA.width = lineLen * 0.35;
-    this.shimmerA.height = this.spread * 0.9;
-    this.shimmerA.alpha = 0.10 * globalIntensity;
-    const shimmer2Pos = 1.6 - ((t * 0.09 + 0.5) % 1.6);
-    this.shimmerB.visible = true;
-    this.shimmerB.position.set(firstP.x + shimmer2Pos * lineLen, cy);
-    this.shimmerB.width = lineLen * 0.3;
-    this.shimmerB.height = this.spread * 0.7;
-    this.shimmerB.alpha = 0.07 * globalIntensity;
-
-    // === SMOKE WISPS (soft blob sprites stretched horizontally) ===
     for (const w of this.fogWisps) {
       const lifeRatio = w.life / w.maxLife;
       const fadeIn = Math.min(1, lifeRatio * 5);
@@ -452,9 +450,6 @@ export class KeyboardGlowController {
       s.alpha = a;
     }
 
-    // === PER-KEY BEAMS (vertical Gaussian sprites + bloom hotspot) ===
-    let beamIdx = 0;
-    let flareIdx = 0;
     for (const anchor of this.keyAnchors) {
       const state = this.activeGlows.get(anchor.midiNote);
       if (!state || state.intensity <= 0.01) continue;
@@ -463,7 +458,7 @@ export class KeyboardGlowController {
       const kw = anchor.width;
       const alpha = clamp(state.intensity * globalIntensity, 0, 1);
       const age = this.time - state.birthTime;
-      const attack = Math.min(1, age * 8); // fast fade-in
+      const attack = Math.min(1, age * 8);
       const beamH = this.spread * (1.2 + state.intensity * 0.8);
       const sway = Math.sin(age * 2.2 + anchor.midiNote) * kw * 0.15;
 
@@ -474,7 +469,6 @@ export class KeyboardGlowController {
       beam.height = beamH;
       beam.tint = state.color;
       beam.alpha = alpha * 0.5 * attack;
-      beamIdx++;
 
       const flare = this.acquireSprite(this.flarePool, this.blobTex, this.beamLayer);
       flare.anchor.set(0.5, 0.5);
@@ -483,9 +477,7 @@ export class KeyboardGlowController {
       flare.height = kw * 3.2;
       flare.tint = state.color;
       flare.alpha = alpha * 0.35 * attack;
-      flareIdx++;
 
-      // Small white-hot center right at the key
       const hot = this.acquireSprite(this.flarePool, this.blobTex, this.beamLayer);
       hot.anchor.set(0.5, 0.5);
       hot.position.set(p.x, p.y);
@@ -493,12 +485,8 @@ export class KeyboardGlowController {
       hot.height = kw * 1.2;
       hot.tint = 0xffffff;
       hot.alpha = alpha * 0.8 * attack;
-      flareIdx++;
     }
-    void beamIdx;
-    void flareIdx;
 
-    // === SPARKLES ===
     for (const sp of this.sparkles) {
       const lifeR = sp.life / sp.maxLife;
       const a = (1 - lifeR) * globalIntensity * 0.6;

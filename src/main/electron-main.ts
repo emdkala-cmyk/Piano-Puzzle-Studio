@@ -4,6 +4,18 @@ import { fileURLToPath } from "node:url";
 import { chooseAsset, readAssetByPath } from "./asset-service.js";
 
 const { app, BrowserWindow, ipcMain } = electron;
+
+// Force Hardware Accelerated GPU & WebGL / WebGPU rasterization
+app.commandLine.appendSwitch("ignore-gpu-blocklist");
+app.commandLine.appendSwitch("enable-gpu-rasterization");
+app.commandLine.appendSwitch("enable-zero-copy");
+app.commandLine.appendSwitch("enable-native-gpu-memory-buffers");
+app.commandLine.appendSwitch("enable-webgl");
+app.commandLine.appendSwitch("enable-webgl2-compute-context");
+app.commandLine.appendSwitch("enable-accelerated-2d-canvas");
+app.commandLine.appendSwitch("enable-accelerated-video-decode");
+app.commandLine.appendSwitch("use-gl", "desktop"); // Use dedicated GPU GL driver
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 function createWindow() {
@@ -16,7 +28,8 @@ function createWindow() {
     webPreferences: {
       preload: path.join(__dirname, "preload.cjs"),
       contextIsolation: true,
-      nodeIntegration: false
+      nodeIntegration: false,
+      webgl: true
     }
   });
 
