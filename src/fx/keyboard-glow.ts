@@ -1,4 +1,4 @@
-import { Container, Sprite, Texture } from "pixi.js";
+import { Container, Graphics, Sprite, Texture } from "pixi.js";
 import { clamp } from "./fx-types";
 import type { Point } from "../geometry/models";
 
@@ -141,6 +141,7 @@ export class KeyboardGlowController {
 
   private readonly shimmerA: Sprite;
   private readonly shimmerB: Sprite;
+  private readonly customFx: Graphics;
 
   private keyAnchors: KeyGlowAnchor[] = [];
   private activeGlows = new Map<number, ActiveKeyGlow>();
@@ -150,6 +151,7 @@ export class KeyboardGlowController {
   private softness = 0.7;
   private dissolveSpeed = 1.5;
   private pulseAmount = 0.4;
+  private glowStyle: "default" | "wave" | "fire" | "particles" = "default";
   private isEnabled = true;
 
   private paused = false;
@@ -194,6 +196,8 @@ export class KeyboardGlowController {
 
     this.shimmerA = mk(this.blobTex, 0xffffff, this.ambientLayer);
     this.shimmerB = mk(this.blobTex, 0xcfe6ff, this.ambientLayer);
+    this.customFx = new Graphics();
+    this.fxLayer.addChild(this.customFx);
 
     // Hide all ambient sprites until setKeyAnchors positions them correctly
     this.hazeSprite.visible = false;
@@ -222,7 +226,8 @@ export class KeyboardGlowController {
     dissolveSpeed: number,
     pulseAmount: number,
     beamIntensity = 1.0,
-    enabled = true
+    enabled = true,
+    style?: "default" | "wave" | "fire" | "particles"
   ): void {
     this.thickness = clamp(thickness, 0.5, 20);
     this.spread = clamp(spread, 5, 250);
@@ -230,6 +235,7 @@ export class KeyboardGlowController {
     this.dissolveSpeed = clamp(dissolveSpeed, 0.1, 8);
     this.pulseAmount = clamp(pulseAmount, 0, 1);
     this.isEnabled = enabled;
+    if (style) this.glowStyle = style;
     void beamIntensity;
     this.renderBar(1.0, this.isEnabled);
   }
@@ -352,19 +358,139 @@ export class KeyboardGlowController {
     this.coreSprite.height = Math.max(1.2, this.thickness * 1.5 + 1.0);
     this.coreSprite.alpha = 0.98 * globalIntensity;
 
-    const shimmerPos = (t * 0.13) % 1.6 - 0.3;
-    this.shimmerA.visible = true;
-    this.shimmerA.position.set(firstP.x + shimmerPos * lineLen, cy);
-    this.shimmerA.width = lineLen * 0.35;
-    this.shimmerA.height = this.spread * 0.9;
-    this.shimmerA.alpha = 0.12 * globalIntensity;
+    // Hide default shimmers — customFx handles all style effects
+    this.shimmerA.visible = false;
+    this.shimmerB.visible = false;
+    this.customFx.clear();
 
-    const shimmer2Pos = 1.6 - ((t * 0.09 + 0.5) % 1.6);
-    this.shimmerB.visible = true;
-    this.shimmerB.position.set(firstP.x + shimmer2Pos * lineLen, cy);
-    this.shimmerB.width = lineLen * 0.3;
-    this.shimmerB.height = this.spread * 0.7;
-    this.shimmerB.alpha = 0.08 * globalIntensity;
+    if (this.glowStyle === "wave") {
+      // ── WAVE: flowing sine wave with thick glowing strokes ──
+      const segments = 60;
+      const amp = this.thickness * 6 * breathe;
+      const freq = 3.0;
+      const speed = 2.5;
+      // Outer haze wave
+      this.customFx.moveTo(firstP.x, cy);
+      for (let i = 1; i <= segments; i++) {
+        const ratio = i / segments;
+        const x = firstP.x + ratio * lineLen;
+        const y = cy + Math.sin(ratio * Math.PI * freq + t * speed) * amp;
+        this.customFx.lineTo(x, y);
+      }
+      this.customFx.stroke({ width: this.thickness * 4, color: 0x4488cc, alpha: 0.15 * globalIntensity });
+      // Middle glow wave
+      this.customFx.moveTo(firstP.x, cy);
+      for (let i = 1; i <= segments; i++) {
+        const ratio = i / segments;
+        const x = firstP.x + ratio * lineLen;
+        const y = cy + Math.sin(ratio * Math.PI * freq + t * speed) * amp * 0.8;
+        this.customFx.lineTo(x, y);
+      }
+      this.customFx.stroke({ width: this.thickness * 2.5, color: 0x66bbee, alpha: 0.35 * globalIntensity });
+      // Core bright wave
+      this.customFx.moveTo(firstP.x, cy);
+      for (let i = 1; i <= segments; i++) {
+        const ratio = i / segments;
+        const x = firstP.x + ratio * lineLen;
+        const y = cy + Math.sin(ratio * Math.PI * freq + t * speed) * amp * 0.6;
+        this.customFx.lineTo(x, y);
+      }
+      this.customFx.stroke({ width: this.thickness * 1.2, color: 0xaaddff, alpha: 0.7 * globalIntensity });
+      // Second harmonic wave (offset)
+      this.customFx.moveTo(firstP.x, cy);
+      for (let i = 1; i <= segments; i++) {
+        const ratio = i / segments;
+        const x = firstP.x + ratio * lineLen;
+        const y = cy + Math.sin(ratio * Math.PI * freq * 1.5 + t * speed * 0.7 + 1.0) * amp * 0.4;
+        this.customFx.lineTo(x, y);
+      }
+      this.customFx.stroke({ width: this.thickness * 1.5, color: 0x88ccee, alpha: 0.25 * globalIntensity });
+
+    } else if (this.glowStyle === "fire") {
+      // ── FIRE: flames rising from the bar ──
+      const flameCount = 40;
+      for (let i = 0; i < flameCount; i++) {
+        const ratio = (i + 0.5) / flameCount;
+        const x = firstP.x + ratio * lineLen;
+        const seed = i * 137.508;
+        // Flickering flame height
+        const flicker1 = Math.sin(t * 9 + seed) * 0.5 + 0.5;
+        const flicker2 = Math.sin(t * 13 + seed * 1.7) * 0.3 + 0.7;
+        const flameH = this.thickness * (8 + flicker1 * 18) * breathe * flicker2;
+        const sway = Math.sin(t * 4 + seed * 0.5) * 3;
+        // Outer flame (dark red)
+        this.customFx.rect(x - 2 + sway * 0.5, cy - flameH * 0.8, 5, flameH * 0.9);
+        this.customFx.fill({ color: 0xcc2200, alpha: 0.2 * globalIntensity * flicker1 });
+        // Middle flame (orange)
+        this.customFx.rect(x - 1.5 + sway * 0.3, cy - flameH * 0.6, 4, flameH * 0.7);
+        this.customFx.fill({ color: 0xff6600, alpha: 0.4 * globalIntensity * flicker2 });
+        // Inner flame (yellow)
+        this.customFx.rect(x - 1 + sway * 0.2, cy - flameH * 0.35, 3, flameH * 0.45);
+        this.customFx.fill({ color: 0xffcc00, alpha: 0.5 * globalIntensity * flicker1 });
+        // Core (white-hot)
+        this.customFx.rect(x - 0.5 + sway * 0.1, cy - flameH * 0.15, 2, flameH * 0.2);
+        this.customFx.fill({ color: 0xffffff, alpha: 0.35 * globalIntensity * flicker2 });
+      }
+      // Ember sparks rising above flames
+      for (let i = 0; i < 15; i++) {
+        const seed = i * 73.13;
+        const sparkX = firstP.x + ((Math.sin(seed + t * 0.8) * 0.5 + 0.5)) * lineLen;
+        const sparkY = cy - 30 - Math.abs(Math.sin(seed * 1.3 + t * 1.2)) * this.spread * 1.5;
+        const sparkSize = 1.5 + Math.sin(seed + t * 3) * 0.8;
+        this.customFx.circle(sparkX, sparkY, sparkSize);
+        this.customFx.fill({ color: 0xff8844, alpha: (0.3 + 0.2 * Math.sin(seed + t * 4)) * globalIntensity });
+      }
+
+    } else if (this.glowStyle === "particles") {
+      // ── PARTICLES: glowing orbs floating upward ──
+      const count = 50;
+      for (let i = 0; i < count; i++) {
+        const seed = i * 97.31;
+        const speed = 0.3 + (i % 5) * 0.15;
+        const drift = Math.sin(seed + t * speed) * lineLen * 0.5;
+        const px = firstP.x + lineLen * 0.5 + drift;
+        const riseSpeed = 0.4 + (i % 3) * 0.2;
+        const py = cy - ((t * riseSpeed * 40 + seed * 7) % (this.spread * 2.5));
+        const size = 2 + Math.sin(seed + t * 2) * 1.2;
+        const alpha = (0.15 + 0.1 * Math.sin(seed * 2 + t)) * globalIntensity;
+        // Outer glow
+        this.customFx.circle(px, py, size * 3);
+        this.customFx.fill({ color: 0x88bbff, alpha: alpha * 0.15 });
+        // Mid glow
+        this.customFx.circle(px, py, size * 1.8);
+        this.customFx.fill({ color: 0xaaddff, alpha: alpha * 0.35 });
+        // Core
+        this.customFx.circle(px, py, size * 0.6);
+        this.customFx.fill({ color: 0xffffff, alpha: alpha * 0.7 });
+      }
+      // Bright sparkles at random positions
+      for (let i = 0; i < 20; i++) {
+        const seed = i * 53.71 + 100;
+        const sx = firstP.x + ((Math.sin(seed + t * 0.4) * 0.5 + 0.5)) * lineLen;
+        const sy = cy - 10 - Math.abs(Math.cos(seed * 0.8 + t * 0.6)) * this.spread * 0.8;
+        const flash = Math.sin(seed * 3 + t * 5) > 0.7 ? 1 : 0;
+        if (flash) {
+          this.customFx.circle(sx, sy, 2.5);
+          this.customFx.fill({ color: 0xffffff, alpha: 0.6 * globalIntensity });
+        }
+      }
+
+    } else {
+      // ── DEFAULT: original shimmer blobs ──
+      const shimmerPos = (t * 0.13) % 1.6 - 0.3;
+      this.shimmerA.visible = true;
+      this.shimmerA.position.set(firstP.x + shimmerPos * lineLen, cy);
+      this.shimmerA.width = lineLen * 0.35;
+      this.shimmerA.height = this.spread * 0.9;
+      this.shimmerA.alpha = 0.12 * globalIntensity;
+
+      const shimmer2Pos = 1.6 - ((t * 0.09 + 0.5) % 1.6);
+      this.shimmerB.visible = true;
+      this.shimmerB.position.set(firstP.x + shimmer2Pos * lineLen, cy);
+      this.shimmerB.width = lineLen * 0.3;
+      this.shimmerB.height = this.spread * 0.7;
+      this.shimmerB.alpha = 0.08 * globalIntensity;
+    }
   }
 
   update(deltaSeconds: number, enabled: boolean, globalIntensity: number): void {

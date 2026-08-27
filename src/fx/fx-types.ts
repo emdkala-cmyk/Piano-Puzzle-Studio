@@ -42,6 +42,8 @@ keyboardGlowEnabled: boolean;
   keyboardGlowSoftness: number;
   keyboardGlowDissolveSpeed: number;
   keyboardGlowPulseAmount: number;
+  /** Style of the glow bar effect: default, wave, fire, particles. */
+  keyboardGlowStyle: "default" | "wave" | "fire" | "particles";
   lightTrailEnabled: boolean;
   lightTrailWidth: number;
   lightTrailGlowLayers: number;
@@ -153,6 +155,7 @@ pathStyle: "scattered" as FxPathStyle,
   keyboardGlowSoftness: 0.7,
   keyboardGlowDissolveSpeed: 1.5,
   keyboardGlowPulseAmount: 0.4,
+  keyboardGlowStyle: "default" as const,
   lightTrailEnabled: true,
   lightTrailWidth: 10,
   lightTrailGlowLayers: 2,
@@ -199,6 +202,7 @@ pathStyle: ["sequential", "random", "spiral", "reverse", "scattered"].includes(m
     keyboardGlowSoftness: clamp(merged.keyboardGlowSoftness),
     keyboardGlowDissolveSpeed: Math.max(0.1, Math.min(8, Number.isFinite(merged.keyboardGlowDissolveSpeed) ? merged.keyboardGlowDissolveSpeed : 1.5)),
     keyboardGlowPulseAmount: clamp(merged.keyboardGlowPulseAmount),
+    keyboardGlowStyle: ["default", "wave", "fire", "particles"].includes(merged.keyboardGlowStyle as string) ? (merged.keyboardGlowStyle as any) : "default",
     lightTrailWidth: Math.max(2, Math.min(40, Number.isFinite(merged.lightTrailWidth) ? merged.lightTrailWidth : DEFAULT_VISUAL_FX_CONFIG.lightTrailWidth)),
     lightTrailGlowLayers: Math.max(1, Math.min(5, Math.round(Number.isFinite(merged.lightTrailGlowLayers) ? merged.lightTrailGlowLayers : DEFAULT_VISUAL_FX_CONFIG.lightTrailGlowLayers))),
     lightTrailLifetimeMs: Math.max(200, Math.min(3000, Number.isFinite(merged.lightTrailLifetimeMs) ? merged.lightTrailLifetimeMs : DEFAULT_VISUAL_FX_CONFIG.lightTrailLifetimeMs)),

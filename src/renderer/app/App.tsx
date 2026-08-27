@@ -172,7 +172,8 @@ export function App() {
         fxSettings.keyboardGlowDissolveSpeed,
         fxSettings.keyboardGlowPulseAmount,
         1.0,
-        fxSettings.keyboardGlowEnabled && fxSettings.enabled
+        fxSettings.keyboardGlowEnabled && fxSettings.enabled,
+        fxSettings.keyboardGlowStyle
       );
       kGlow.update(0.016, fxSettings.keyboardGlowEnabled && fxSettings.enabled, 1.0);
     }
@@ -300,6 +301,8 @@ export function App() {
         <label class="range-label">Pulse Amount <input data-fx-value="keyboardGlowPulseAmount" type="text" class="fx-value-input"></label>
         <input data-fx="keyboardGlowPulseAmount" type="range" min="0" max="1" step="0.01">
         <small class="anchor-hint">شدت نوسان نفس‌خط (breathing)</small>
+        <label>Glow Style (افکت خط)<select data-fx="keyboardGlowStyle"><option value="default">Default (پیش‌فرض)</option><option value="wave">Wave (موج دریا)</option><option value="fire">Fire (آتش)</option><option value="particles">Micro Particles (ذرات ریز)</option></select></label>
+        <small class="anchor-hint">نوع افکت بصری روی خط درخشان کلاویه</small>
       </div>
       <div class="fx-section"><h4 class="fx-section-title">✨ Ambient & Cinematic</h4>
         <label class="toggle-row"><span>Ambient Dust</span><input data-fx="ambientDustEnabled" type="checkbox"></label>
